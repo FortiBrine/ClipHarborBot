@@ -1,0 +1,17 @@
+services:
+  clipharbor-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clipharbor-bot
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "2000:2000"
+
+    volumes:
+      - clipharbor-temp:/app/temp
+      - /etc/localtime:/etc/localtime:ro
+
+volumes:
+  clipharbor-temp:
