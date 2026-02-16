@@ -1,17 +1,24 @@
 services:
-  clipharbor-bot:
+  clipharborbot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: clipharbor-bot
+    container_name: clipharborbot
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "2000:2000"
-
     volumes:
       - clipharbor-temp:/app/temp
-      - /etc/localtime:/etc/localtime:ro
+  cloudflared:
+    image: docker.io/cloudflare/cloudflared:2025.11.1-amd64
+    container_name: cloudflared
+    restart: unless-stopped
+
+    profiles:
+      - tunnel
+    command: tunnel run --url http://clipharborbot:2000 --token ${CLOUDFLARE_TUNNEL_TOKEN}
+
+    depends_on:
+      - clipharborbot
 
 volumes:
   clipharbor-temp:

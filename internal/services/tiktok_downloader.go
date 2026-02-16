@@ -29,7 +29,7 @@ func NewTikTokDownloader() (*TikTokDownloader, error) {
 	}, nil
 }
 
-func (d *TikTokDownloader) IsValidTikTokURL(url string) bool {
+func (downloader *TikTokDownloader) IsValidTikTokURL(url string) bool {
 	patterns := []string{
 		`^https?://(?:www\.)?tiktok\.com/@[\w.-]+/video/\d+`,
 		`^https?://(?:vm|vt)\.tiktok\.com/[\w]+`,
@@ -46,13 +46,13 @@ func (d *TikTokDownloader) IsValidTikTokURL(url string) bool {
 	return false
 }
 
-func (d *TikTokDownloader) DownloadVideo(ctx context.Context, url string) (string, error) {
-	if !d.IsValidTikTokURL(url) {
+func (downloader *TikTokDownloader) DownloadVideo(ctx context.Context, url string) (string, error) {
+	if !downloader.IsValidTikTokURL(url) {
 		return "", fmt.Errorf("invalid TikTok URL")
 	}
 
 	outputTemplate := filepath.Join(
-		d.tempDir,
+		downloader.tempDir,
 		fmt.Sprintf("tiktok_%s.mp4", uuid.NewString()),
 	)
 
@@ -89,7 +89,7 @@ func (d *TikTokDownloader) DownloadVideo(ctx context.Context, url string) (strin
 	return outputTemplate, nil
 }
 
-func (d *TikTokDownloader) CleanupFile(filePath string) error {
+func (downloader *TikTokDownloader) CleanupFile(filePath string) error {
 	if filePath == "" {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (d *TikTokDownloader) CleanupFile(filePath string) error {
 		return err
 	}
 
-	tempDir, _ := filepath.Abs(d.tempDir)
+	tempDir, _ := filepath.Abs(downloader.tempDir)
 	if !strings.HasPrefix(cleanPath, tempDir+string(os.PathSeparator)) {
 		return fmt.Errorf("security error: file path outside temp directory")
 	}
@@ -107,8 +107,8 @@ func (d *TikTokDownloader) CleanupFile(filePath string) error {
 	return os.Remove(filePath)
 }
 
-func (d *TikTokDownloader) CleanupOldFiles(olderThan time.Duration) error {
-	entries, err := os.ReadDir(d.tempDir)
+func (downloader *TikTokDownloader) CleanupOldFiles(olderThan time.Duration) error {
+	entries, err := os.ReadDir(downloader.tempDir)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (d *TikTokDownloader) CleanupOldFiles(olderThan time.Duration) error {
 		}
 
 		if now.Sub(info.ModTime()) > olderThan {
-			filePath := filepath.Join(d.tempDir, entry.Name())
+			filePath := filepath.Join(downloader.tempDir, entry.Name())
 
 			if err := os.Remove(filePath); err != nil {
 				log.Printf("cleanup failed: %s: %v", filePath, err)
