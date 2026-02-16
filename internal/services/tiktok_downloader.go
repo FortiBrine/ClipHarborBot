@@ -83,7 +83,7 @@ func (downloader *TikTokDownloader) DownloadVideo(ctx context.Context, url strin
 	}
 
 	if _, err := os.Stat(outputTemplate); os.IsNotExist(err) {
-		return "", fmt.Errorf("downloaded file not found")
+		return "", fmt.Errorf("downloaded file not found: %v", err)
 	}
 
 	return outputTemplate, nil
@@ -96,10 +96,15 @@ func (downloader *TikTokDownloader) CleanupFile(filePath string) error {
 
 	cleanPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	tempDir, _ := filepath.Abs(downloader.tempDir)
+	tempDir, err := filepath.Abs(downloader.tempDir)
+
+	if err != nil {
+		return fmt.Errorf("failed to get absolute temp directory path: %w", err)
+	}
+
 	if !strings.HasPrefix(cleanPath, tempDir+string(os.PathSeparator)) {
 		return fmt.Errorf("security error: file path outside temp directory")
 	}
@@ -110,7 +115,7 @@ func (downloader *TikTokDownloader) CleanupFile(filePath string) error {
 func (downloader *TikTokDownloader) CleanupOldFiles(olderThan time.Duration) error {
 	entries, err := os.ReadDir(downloader.tempDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read temp directory: %w", err)
 	}
 
 	now := time.Now()

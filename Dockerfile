@@ -1,11 +1,5 @@
 FROM golang:1.25-alpine AS builder
 
-RUN apk update && \
-    apk add --no-cache \
-    ca-certificates \
-    git \
-    && rm -rf /var/cache/apk/*
-
 WORKDIR /build
 
 COPY go.mod go.sum ./
@@ -22,14 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 
 FROM alpine:3.23.3
 
-RUN apk add --no-cache \
-    ca-certificates \
-    yt-dlp \
-    ffmpeg \
-    tzdata \
-    wget
-
-RUN addgroup -g 1000 -S appgroup && \
+RUN apk add --no-cache yt-dlp && \
+    addgroup -g 1000 -S appgroup && \
     adduser -u 1000 -S appuser -G appgroup -h /app
 
 WORKDIR /app
@@ -47,6 +35,6 @@ ENV TMPDIR=/app/temp \
     HOME=/app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:2000/health || exit 1
+  CMD /bin/busybox wget -qO- http://localhost:2000/health || exit 1
 
 CMD ["/app/clipharborbot"]

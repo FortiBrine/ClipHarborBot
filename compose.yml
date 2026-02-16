@@ -6,17 +6,32 @@ services:
     container_name: clipharborbot
     restart: unless-stopped
     env_file: .env
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "-qO-", "http://localhost:2000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - clipharbor-temp:/app/temp
   cloudflared:
-    image: docker.io/cloudflare/cloudflared:2025.11.1-amd64
+    image: docker.io/cloudflare/cloudflared:2026.2.0
     container_name: cloudflared
     restart: unless-stopped
 
     profiles:
       - tunnel
     command: tunnel run --url http://clipharborbot:2000 --token ${CLOUDFLARE_TUNNEL_TOKEN}
-
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - clipharborbot
 

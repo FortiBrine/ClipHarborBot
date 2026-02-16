@@ -18,11 +18,14 @@ func init() {
 	var err error
 	tiktokDownloader, err = services.NewTikTokDownloader()
 	if err != nil {
-		log.Fatal("Failed to initialize TikTok downloader: ", err)
+		log.Fatalf("Failed to initialize TikTok downloader: %v", err)
 	}
 
 	go func() {
-		_ = tiktokDownloader.CleanupOldFiles(1 * 60 * 60 * 1000000000)
+		err = tiktokDownloader.CleanupOldFiles(1 * 60 * 60 * 1000000000)
+		if err != nil {
+			log.Printf("Failed to cleanup old files: %v", err)
+		}
 	}()
 }
 
@@ -75,10 +78,15 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 			errorMsg = messages.Messages[messages.UA]["tiktok_size_error"]
 		}
 
-		_, _ = b.SendMessage(ctx, &tgbot.SendMessageParams{
+		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   errorMsg,
 		})
+
+		if err != nil {
+			log.Printf("Failed to send error message: %v", err)
+		}
+
 		return
 	}
 
@@ -89,20 +97,28 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	}()
 
 	if statusMsg != nil {
-		_, _ = b.EditMessageText(ctx, &tgbot.EditMessageTextParams{
+		_, err = b.EditMessageText(ctx, &tgbot.EditMessageTextParams{
 			ChatID:    update.Message.Chat.ID,
 			MessageID: statusMsg.ID,
 			Text:      messages.Messages[messages.UA]["tiktok_uploading"],
 		})
+
+		if err != nil {
+			log.Printf("Failed to edit status message: %v", err)
+		}
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("Failed to open video file: %v", err)
-		_, _ = b.SendMessage(ctx, &tgbot.SendMessageParams{
+		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   messages.Messages[messages.UA]["tiktok_download_error"],
 		})
+
+		if err != nil {
+			log.Printf("Failed to send error message: %v", err)
+		}
 		return
 	}
 	defer file.Close()
@@ -114,10 +130,15 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 
 	if err != nil {
 		log.Printf("Failed to send video: %v", err)
-		_, _ = b.SendMessage(ctx, &tgbot.SendMessageParams{
+		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   messages.Messages[messages.UA]["tiktok_download_error"],
 		})
+
+		if err != nil {
+			log.Printf("Failed to send error message: %v", err)
+		}
+
 		return
 	}
 

@@ -21,6 +21,6 @@ func Default(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	})
 
 	if err != nil {
-		log.Fatal("Failed to send message: ", err)
+		log.Fatalf("Failed to send message: %v", err)
 	}
 }

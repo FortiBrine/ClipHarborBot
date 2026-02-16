@@ -19,7 +19,7 @@ func main() {
 
 	clipHarborBot, err := bot.New(botConfig)
 	if err != nil {
-		log.Fatal("Failed to create bot: ", err)
+		log.Fatalf("Failed to create bot: %v", err)
 		return
 	}
 
@@ -33,11 +33,11 @@ func main() {
 
 	go func() {
 		if err := http.ListenAndServe(":2000", mux); err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
 	}()
 
 	if err = clipHarborBot.Start(ctx); err != nil {
-		log.Fatal("Failed to start bot: ", err)
+		log.Fatalf("Failed to start bot: %v", err)
 	}
 }

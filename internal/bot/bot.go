@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
@@ -23,7 +24,7 @@ func New(config *config.Config) (*ClipHarborBot, error) {
 
 	bot, err := tgbot.New(config.Token, options...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create bot: %w", err)
 	}
 
 	bot.RegisterHandler(
@@ -43,7 +44,7 @@ func New(config *config.Config) (*ClipHarborBot, error) {
 	return &ClipHarborBot{
 		bot:       bot,
 		botConfig: config,
-	}, err
+	}, nil
 }
 
 func (clipHarborBot *ClipHarborBot) Start(ctx context.Context) error {
@@ -51,7 +52,7 @@ func (clipHarborBot *ClipHarborBot) Start(ctx context.Context) error {
 		URL:         clipHarborBot.botConfig.WebhookURL,
 		SecretToken: clipHarborBot.botConfig.WebhookSecret,
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to set webhook: %w", err)
 	}
 
 	clipHarborBot.bot.StartWebhook(ctx)
