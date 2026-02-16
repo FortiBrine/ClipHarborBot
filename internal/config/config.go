@@ -16,15 +16,15 @@ type Config struct {
 func Load() *Config {
 	_ = godotenv.Load()
 
-	cfg := &Config{
+	config := &Config{
 		Token:         os.Getenv("BOT_TOKEN"),
 		WebhookURL:    os.Getenv("WEBHOOK_URL"),
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
 	}
 
-	if cfg.Token == "" {
+	if config.Token == "" {
 		log.Fatal("BOT_TOKEN is required")
 	}
 
-	return cfg
+	return config
 }
