@@ -8,7 +8,7 @@ import (
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	tgbot "github.com/go-telegram/bot"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/handlers"
+	"github.com/FortiBrine/ClipHarborBot/internal/handler"
 )
 
 type ClipHarborBot struct {
@@ -18,7 +18,7 @@ type ClipHarborBot struct {
 
 func New(config *config.Config) (*ClipHarborBot, error) {
 	options := []tgbot.Option{
-		tgbot.WithDefaultHandler(handlers.Default),
+		tgbot.WithDefaultHandler(handler.Default),
 		tgbot.WithWebhookSecretToken(config.WebhookSecret),
 	}
 
@@ -31,14 +31,14 @@ func New(config *config.Config) (*ClipHarborBot, error) {
 		tgbot.HandlerTypeMessageText,
 		"tiktok",
 		tgbot.MatchTypeCommandStartOnly,
-		handlers.Tiktok,
+		handler.Tiktok,
 	)
 
 	bot.RegisterHandler(
 		tgbot.HandlerTypeMessageText,
 		"start",
 		tgbot.MatchTypeCommandStartOnly,
-		handlers.StartHandler,
+		handler.StartHandler,
 	)
 
 	return &ClipHarborBot{

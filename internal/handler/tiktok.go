@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"context"
@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/messages"
-	"github.com/FortiBrine/ClipHarborBot/internal/services"
+	"github.com/FortiBrine/ClipHarborBot/internal/service"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
-var tiktokDownloader *services.TikTokDownloader
+var tiktokDownloader *service.TikTokDownloader
 
 func init() {
 	var err error
-	tiktokDownloader, err = services.NewTikTokDownloader()
+	tiktokDownloader, err = service.NewTikTokDownloader()
 	if err != nil {
 		log.Fatalf("Failed to initialize TikTok downloader: %v", err)
 	}
