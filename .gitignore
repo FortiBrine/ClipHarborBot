@@ -1,0 +1,54 @@
+# Environment files (security-sensitive)
+.env
+.env.*
+!.env.example
+**/.env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+bin/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+go.sum
+vendor/
+*.test
+*.out
+*.prof
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker volumes and temp data
+volumes/
+data/
+
+# Secrets (NEVER commit these)
+secrets/
+*.key
+*.pem
+*.crt
+*.p12
+*secret*
+*token*
+*password*
+credentials.json
