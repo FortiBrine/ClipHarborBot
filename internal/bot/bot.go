@@ -6,19 +6,30 @@ import (
 	"net/http"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
+	"github.com/FortiBrine/ClipHarborBot/internal/database"
+	"github.com/FortiBrine/ClipHarborBot/internal/repository"
 	tgbot "github.com/go-telegram/bot"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/handler"
 )
 
 type ClipHarborBot struct {
-	bot       *tgbot.Bot
-	botConfig *config.Config
+	bot                    *tgbot.Bot
+	botConfig              *config.Config
+	database               *database.Database
+	userLanguageRepository *repository.UserLanguageRepository
 }
 
-func New(config *config.Config) (*ClipHarborBot, error) {
+func New(
+	config *config.Config,
+	database *database.Database,
+	userLanguageRepository *repository.UserLanguageRepository,
+) (*ClipHarborBot, error) {
+
+	defaultHandler := handler.NewDefaultHandler(userLanguageRepository)
+
 	options := []tgbot.Option{
-		tgbot.WithDefaultHandler(handler.Default),
+		tgbot.WithDefaultHandler(defaultHandler.Default),
 		tgbot.WithWebhookSecretToken(config.WebhookSecret),
 	}
 
@@ -42,8 +53,10 @@ func New(config *config.Config) (*ClipHarborBot, error) {
 	)
 
 	return &ClipHarborBot{
-		bot:       bot,
-		botConfig: config,
+		bot:                    bot,
+		botConfig:              config,
+		database:               database,
+		userLanguageRepository: userLanguageRepository,
 	}, nil
 }
 
