@@ -20,6 +20,6 @@ func StartHandler(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to send message: %v", err)
+		log.Printf("Failed to send message: %v", err)
 	}
 }

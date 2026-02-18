@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     env_file: .env
     healthcheck:
-      test: ["CMD", "/bin/busybox", "wget", "-qO-", "http://localhost:2000/health"]
+      test: ["CMD-SHELL", "curl -fs http://localhost:2000/health || exit 1"]
       interval: 30s
       timeout: 5s
       start_period: 10s
@@ -18,22 +18,21 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      - clipharbor-temp:/app/temp
+      - clipharborbot-temp:/app/temp
     depends_on:
       postgres:
         condition: service_healthy
 
   postgres:
-    image: docker.io/library/postgres:16-alpine
-    container_name: clipharbor-postgres
+    image: docker.io/library/postgres:18-alpine
+    container_name: clipharborbot-postgres
     restart: unless-stopped
-    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 30s
@@ -47,7 +46,7 @@ services:
 
   cloudflared:
     image: docker.io/cloudflare/cloudflared:2026.2.0
-    container_name: cloudflared
+    container_name: clipharborbot-cloudflared
     restart: unless-stopped
 
     profiles:
@@ -59,8 +58,9 @@ services:
         max-size: "10m"
         max-file: "3"
     depends_on:
-      - clipharborbot
+      clipharborbot:
+        condition: service_healthy
 
 volumes:
-  clipharbor-temp:
+  clipharborbot-temp:
   postgres-data:

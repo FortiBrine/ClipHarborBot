@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 
 FROM alpine:3.23.3
 
-RUN apk add --no-cache yt-dlp && \
+RUN apk add --no-cache yt-dlp curl && \
     addgroup -g 1000 -S appgroup && \
     adduser -u 1000 -S appuser -G appgroup -h /app
 
@@ -35,6 +35,6 @@ ENV TMPDIR=/app/temp \
     HOME=/app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD /bin/busybox wget -qO- http://localhost:2000/health || exit 1
+    CMD curl -fs http://localhost:2000/health || exit 1
 
 CMD ["/app/clipharborbot"]
