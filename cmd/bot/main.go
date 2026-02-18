@@ -9,6 +9,8 @@ import (
 
 	"github.com/FortiBrine/ClipHarborBot/internal/bot"
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
+	"github.com/FortiBrine/ClipHarborBot/internal/database"
+	"github.com/FortiBrine/ClipHarborBot/internal/repository"
 )
 
 func main() {
@@ -17,7 +19,16 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	clipHarborBot, err := bot.New(botConfig)
+	db, err := database.New(botConfig)
+
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+		return
+	}
+
+	userLanguageRepository := repository.NewUserLanguageRepository(db)
+
+	clipHarborBot, err := bot.New(botConfig, db, userLanguageRepository)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 		return
