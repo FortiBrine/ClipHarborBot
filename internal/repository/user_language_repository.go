@@ -18,6 +18,16 @@ func NewUserLanguageRepository(database *database.Database) *UserLanguageReposit
 	return &UserLanguageRepository{database: database}
 }
 
+func (r *UserLanguageRepository) Migrate() error {
+	err := r.database.GormDB.AutoMigrate(&model.User{})
+
+	if err != nil {
+		return fmt.Errorf("failed to migrate user language repository: %w", err)
+	}
+
+	return nil
+}
+
 func (r *UserLanguageRepository) GetUserLanguage(ctx context.Context, telegramID int64) (string, error) {
 	user, err := gorm.G[model.User](r.database.GormDB).Where("id = ?", telegramID).First(ctx)
 
@@ -45,6 +55,8 @@ func (r *UserLanguageRepository) SetUserLanguage(ctx context.Context, telegramID
 			if err = gorm.G[model.User](r.database.GormDB).Create(ctx, &user); err != nil {
 				return fmt.Errorf("failed to create user with language: %w", err)
 			}
+
+			return nil
 		}
 
 		return fmt.Errorf("failed set user language: %w", err)

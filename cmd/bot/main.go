@@ -27,6 +27,11 @@ func main() {
 	}
 
 	userLanguageRepository := repository.NewUserLanguageRepository(db)
+	err = userLanguageRepository.Migrate()
+
+	if err != nil {
+		log.Fatalf("Failed to migrate user language repository: %v", err)
+	}
 
 	clipHarborBot, err := bot.New(botConfig, db, userLanguageRepository)
 	if err != nil {

@@ -4,6 +4,8 @@ type Lang string
 
 const (
 	UA Lang = "ua"
+
+	ChangeLanguageMessage = "Виберіть мову / Select language / Wybierz język"
 )
 
 var Messages = map[Lang]map[string]string{

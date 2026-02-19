@@ -27,6 +27,7 @@ func New(
 ) (*ClipHarborBot, error) {
 
 	defaultHandler := handler.NewDefaultHandler(userLanguageRepository)
+	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
@@ -50,6 +51,20 @@ func New(
 		"start",
 		tgbot.MatchTypeCommandStartOnly,
 		handler.StartHandler,
+	)
+
+	bot.RegisterHandler(
+		tgbot.HandlerTypeMessageText,
+		"lang",
+		tgbot.MatchTypeCommandStartOnly,
+		languageHandler.LanguageCommand,
+	)
+
+	bot.RegisterHandler(
+		tgbot.HandlerTypeCallbackQueryData,
+		"lang",
+		tgbot.MatchTypePrefix,
+		languageHandler.CallbackHandler,
 	)
 
 	return &ClipHarborBot{
