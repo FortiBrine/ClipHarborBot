@@ -93,7 +93,7 @@ func (h *LanguageHandler) CallbackHandler(ctx context.Context, b *tgbot.Bot, upd
 
 	_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: callbackQuery.Message.Message.Chat.ID,
-		Text:   "You have selected language: " + language,
+		Text:   messages.SelectedLanguageMessage,
 	})
 
 	if err != nil {
