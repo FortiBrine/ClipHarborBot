@@ -8,26 +8,31 @@ import (
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	"github.com/FortiBrine/ClipHarborBot/internal/database"
 	"github.com/FortiBrine/ClipHarborBot/internal/repository"
+	"github.com/FortiBrine/ClipHarborBot/internal/service"
 	tgbot "github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/handler"
 )
 
 type ClipHarborBot struct {
-	bot                    *tgbot.Bot
-	botConfig              *config.Config
-	database               *database.Database
-	userLanguageRepository *repository.UserLanguageRepository
+	bot            *tgbot.Bot
+	botConfig      *config.Config
+	database       *database.Database
+	messageService *service.MessageService
 }
 
 func New(
 	config *config.Config,
 	database *database.Database,
+	messageService *service.MessageService,
 	userLanguageRepository *repository.UserLanguageRepository,
 ) (*ClipHarborBot, error) {
 
-	defaultHandler := handler.NewDefaultHandler(userLanguageRepository)
+	defaultHandler := handler.NewDefaultHandler(messageService)
 	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
+	tiktokHandler := handler.NewTiktokHandler(messageService)
+	startHandler := handler.NewStartHandler(messageService)
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
@@ -43,14 +48,14 @@ func New(
 		tgbot.HandlerTypeMessageText,
 		"tiktok",
 		tgbot.MatchTypeCommandStartOnly,
-		handler.Tiktok,
+		tiktokHandler.Handle,
 	)
 
 	bot.RegisterHandler(
 		tgbot.HandlerTypeMessageText,
 		"start",
 		tgbot.MatchTypeCommandStartOnly,
-		handler.StartHandler,
+		startHandler.Handle,
 	)
 
 	bot.RegisterHandler(
@@ -68,25 +73,46 @@ func New(
 	)
 
 	return &ClipHarborBot{
-		bot:                    bot,
-		botConfig:              config,
-		database:               database,
-		userLanguageRepository: userLanguageRepository,
+		bot:            bot,
+		botConfig:      config,
+		database:       database,
+		messageService: messageService,
 	}, nil
 }
 
-func (clipHarborBot *ClipHarborBot) Start(ctx context.Context) error {
-	if _, err := clipHarborBot.bot.SetWebhook(ctx, &tgbot.SetWebhookParams{
-		URL:         clipHarborBot.botConfig.WebhookURL,
-		SecretToken: clipHarborBot.botConfig.WebhookSecret,
+func (b *ClipHarborBot) Start(ctx context.Context) error {
+	if _, err := b.bot.SetWebhook(ctx, &tgbot.SetWebhookParams{
+		URL:         b.botConfig.WebhookURL,
+		SecretToken: b.botConfig.WebhookSecret,
 	}); err != nil {
 		return fmt.Errorf("failed to set webhook: %w", err)
 	}
 
-	clipHarborBot.bot.StartWebhook(ctx)
+	_, err := b.bot.SetMyCommands(ctx, &tgbot.SetMyCommandsParams{
+		Commands: []models.BotCommand{
+			{
+				Command:     "start",
+				Description: "Start the bot and get a welcome message",
+			},
+			{
+				Command:     "tiktok",
+				Description: "Download TikTok videos by providing a link",
+			},
+			{
+				Command:     "lang",
+				Description: "Change the bot's language",
+			},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to set bot commands: %w", err)
+	}
+
+	b.bot.StartWebhook(ctx)
 	return nil
 }
 
-func (clipHarborBot *ClipHarborBot) WebhookHandler() http.Handler {
-	return clipHarborBot.bot.WebhookHandler()
+func (b *ClipHarborBot) WebhookHandler() http.Handler {
+	return b.bot.WebhookHandler()
 }

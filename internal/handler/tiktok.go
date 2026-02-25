@@ -6,17 +6,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	"github.com/FortiBrine/ClipHarborBot/internal/service"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
-var tiktokDownloader *service.TikTokDownloader
+type TiktokHandler struct {
+	messageService   *service.MessageService
+	tiktokDownloader *service.TikTokDownloader
+}
 
-func init() {
-	var err error
-	tiktokDownloader, err = service.NewTikTokDownloader()
+func NewTiktokHandler(messageService *service.MessageService) *TiktokHandler {
+	tiktokDownloader, err := service.NewTikTokDownloader()
 	if err != nil {
 		log.Fatalf("Failed to initialize TikTok downloader: %v", err)
 	}
@@ -27,9 +28,14 @@ func init() {
 			log.Printf("Failed to cleanup old files: %v", err)
 		}
 	}()
+
+	return &TiktokHandler{
+		messageService:   messageService,
+		tiktokDownloader: tiktokDownloader,
+	}
 }
 
-func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
+func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -40,7 +46,11 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	if len(parts) < 2 {
 		_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   messages.Messages[messages.UA]["tiktok_help"],
+			Text: h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_help",
+			),
 		})
 		if err != nil {
 			log.Printf("Failed to send help message: %v", err)
@@ -50,10 +60,14 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 
 	url := parts[1]
 
-	if !tiktokDownloader.IsValidTikTokURL(url) {
+	if !h.tiktokDownloader.IsValidTikTokURL(url) {
 		_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   messages.Messages[messages.UA]["tiktok_invalid_url"],
+			Text: h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_invalid_url",
+			),
 		})
 		if err != nil {
 			log.Printf("Failed to send invalid URL message: %v", err)
@@ -63,19 +77,31 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 
 	statusMsg, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text:   messages.Messages[messages.UA]["tiktok_downloading"],
+		Text: h.messageService.GetMessage(
+			ctx,
+			update.Message.From.ID,
+			"tiktok_downloading",
+		),
 	})
 	if err != nil {
 		log.Printf("Failed to send downloading message: %v", err)
 	}
 
-	filePath, err := tiktokDownloader.DownloadVideo(ctx, url)
+	filePath, err := h.tiktokDownloader.DownloadVideo(ctx, url)
 	if err != nil {
 		log.Printf("Failed to download TikTok video: %v", err)
 
-		errorMsg := messages.Messages[messages.UA]["tiktok_download_error"]
+		errorMsg := h.messageService.GetMessage(
+			ctx,
+			update.Message.From.ID,
+			"tiktok_download_error",
+		)
 		if strings.Contains(err.Error(), "max-filesize") {
-			errorMsg = messages.Messages[messages.UA]["tiktok_size_error"]
+			errorMsg = h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_size_error",
+			)
 		}
 
 		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
@@ -91,7 +117,7 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	}
 
 	defer func() {
-		if err := tiktokDownloader.CleanupFile(filePath); err != nil {
+		if err := h.tiktokDownloader.CleanupFile(filePath); err != nil {
 			log.Printf("Failed to cleanup file: %v", err)
 		}
 	}()
@@ -100,7 +126,11 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 		_, err = b.EditMessageText(ctx, &tgbot.EditMessageTextParams{
 			ChatID:    update.Message.Chat.ID,
 			MessageID: statusMsg.ID,
-			Text:      messages.Messages[messages.UA]["tiktok_uploading"],
+			Text: h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_uploading",
+			),
 		})
 
 		if err != nil {
@@ -113,7 +143,11 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 		log.Printf("Failed to open video file: %v", err)
 		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   messages.Messages[messages.UA]["tiktok_download_error"],
+			Text: h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_download_error",
+			),
 		})
 
 		if err != nil {
@@ -121,7 +155,13 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 		}
 		return
 	}
-	defer file.Close()
+
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Printf("Failed to close file: %v", err)
+		}
+	}(file)
 
 	_, err = b.SendVideo(ctx, &tgbot.SendVideoParams{
 		ChatID: update.Message.Chat.ID,
@@ -132,7 +172,11 @@ func Tiktok(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 		log.Printf("Failed to send video: %v", err)
 		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   messages.Messages[messages.UA]["tiktok_download_error"],
+			Text: h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"tiktok_download_error",
+			),
 		})
 
 		if err != nil {
