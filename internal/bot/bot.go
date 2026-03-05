@@ -32,6 +32,7 @@ func New(
 	defaultHandler := handler.NewDefaultHandler(messageService)
 	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
 	tiktokHandler := handler.NewTiktokHandler(messageService)
+	youtubeHandler := handler.NewYouTubeHandler(messageService)
 	startHandler := handler.NewStartHandler(messageService)
 
 	options := []tgbot.Option{
@@ -49,6 +50,13 @@ func New(
 		"tiktok",
 		tgbot.MatchTypeCommandStartOnly,
 		tiktokHandler.Handle,
+	)
+
+	bot.RegisterHandler(
+		tgbot.HandlerTypeMessageText,
+		"youtube",
+		tgbot.MatchTypeCommandStartOnly,
+		youtubeHandler.Handle,
 	)
 
 	bot.RegisterHandler(
@@ -97,6 +105,10 @@ func (b *ClipHarborBot) Start(ctx context.Context) error {
 			{
 				Command:     "tiktok",
 				Description: "Download TikTok videos by providing a link",
+			},
+			{
+				Command:     "youtube",
+				Description: "Download YouTube videos by providing a link",
 			},
 			{
 				Command:     "lang",

@@ -13,20 +13,20 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-type TiktokHandler struct {
+type YouTubeHandler struct {
 	messageService *service.MessageService
 	downloader     *service.Downloader
 }
 
-func NewTiktokHandler(messageService *service.MessageService) *TiktokHandler {
+func NewYouTubeHandler(messageService *service.MessageService) *YouTubeHandler {
 
 	downloader, err := service.NewDownloader(service.PlatformConfig{
-		Name:   "tiktok",
-		Format: "bestvideo+bestaudio/best",
+		Name:   "youtube",
+		Format: "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best",
 		Patterns: []*regexp.Regexp{
-			regexp.MustCompile(`^https?://(www\.)?tiktok\.com/@[\w\.-]+/video/\d+`),
-			regexp.MustCompile(`^https?://vt\.tiktok\.com/[\w-]+`),
-			regexp.MustCompile(`^https?://vm\.tiktok\.com/[\w-]+`),
+			regexp.MustCompile(`^https?://(?:www\.)?youtube\.com/watch\?.*v=[\w-]+`),
+			regexp.MustCompile(`^https?://youtu\.be/[\w-]+`),
+			regexp.MustCompile(`^https?://(?:www\.)?youtube\.com/shorts/[\w-]+`),
 		},
 	})
 	if err != nil {
@@ -38,13 +38,13 @@ func NewTiktokHandler(messageService *service.MessageService) *TiktokHandler {
 		1*time.Hour,
 	)
 
-	return &TiktokHandler{
+	return &YouTubeHandler{
 		messageService: messageService,
 		downloader:     downloader,
 	}
 }
 
-func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.Update) {
+func (h *YouTubeHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -58,7 +58,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_help",
+				"youtube_help",
 			),
 		})
 		if err != nil {
@@ -75,7 +75,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_invalid_url",
+				"youtube_invalid_url",
 			),
 		})
 		if err != nil {
@@ -89,7 +89,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 		Text: h.messageService.GetMessage(
 			ctx,
 			update.Message.From.ID,
-			"tiktok_downloading",
+			"youtube_downloading",
 		),
 	})
 	if err != nil {
@@ -98,18 +98,18 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 
 	filePath, err := h.downloader.DownloadVideo(ctx, url)
 	if err != nil {
-		log.Printf("Failed to download TikTok video: %v", err)
+		log.Printf("Failed to download YouTube video: %v", err)
 
 		errorMsg := h.messageService.GetMessage(
 			ctx,
 			update.Message.From.ID,
-			"tiktok_download_error",
+			"youtube_download_error",
 		)
 		if strings.Contains(err.Error(), "max-filesize") {
 			errorMsg = h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_size_error",
+				"youtube_size_error",
 			)
 		}
 
@@ -138,7 +138,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_uploading",
+				"youtube_uploading",
 			),
 		})
 
@@ -155,7 +155,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_download_error",
+				"youtube_download_error",
 			),
 		})
 
@@ -184,7 +184,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_download_error",
+				"youtube_download_error",
 			),
 		})
 
