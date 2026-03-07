@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var ErrFileTooLarge = errors.New("file too large for telegram")
 
 type PlatformConfig struct {
 	Name     string
@@ -75,7 +78,7 @@ func (d *Downloader) DownloadVideo(ctx context.Context, url string) (string, err
 		"-f", d.config.Format,
 		"--merge-output-format", "mp4",
 		"-o", output,
-		"--max-filesize", "100M",
+		"--max-filesize", "49M",
 		"--socket-timeout", "30",
 		url,
 	}
@@ -94,8 +97,19 @@ func (d *Downloader) DownloadVideo(ctx context.Context, url string) (string, err
 		return "", fmt.Errorf("download failed: %w (%s)", err, string(out))
 	}
 
-	if _, err := os.Stat(output); err != nil {
+	info, err := os.Stat(output)
+	if err != nil {
 		return "", fmt.Errorf("downloaded file not found: %w", err)
+	}
+
+	if info.Size() > 49*1024*1024 {
+		err = os.Remove(output)
+
+		if err != nil {
+			log.Printf("failed to remove oversized file: %v", err)
+		}
+
+		return "", ErrFileTooLarge
 	}
 
 	return output, nil

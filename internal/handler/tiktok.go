@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"regexp"
@@ -22,7 +23,7 @@ func NewTiktokHandler(messageService *service.MessageService) *TiktokHandler {
 
 	downloader, err := service.NewDownloader(service.PlatformConfig{
 		Name:   "tiktok",
-		Format: "bestvideo+bestaudio/best",
+		Format: "best[ext=mp4]",
 		Patterns: []*regexp.Regexp{
 			regexp.MustCompile(`^https?://(www\.)?tiktok\.com/@[\w\.-]+/video/\d+`),
 			regexp.MustCompile(`^https?://vt\.tiktok\.com/[\w-]+`),
@@ -75,7 +76,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_invalid_url",
+				"invalid_video_url",
 			),
 		})
 		if err != nil {
@@ -89,11 +90,24 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 		Text: h.messageService.GetMessage(
 			ctx,
 			update.Message.From.ID,
-			"tiktok_downloading",
+			"video_downloading",
 		),
 	})
 	if err != nil {
 		log.Printf("Failed to send downloading message: %v", err)
+	}
+
+	if err == nil && statusMsg != nil {
+		defer func() {
+			_, err = b.DeleteMessage(ctx, &tgbot.DeleteMessageParams{
+				ChatID:    update.Message.Chat.ID,
+				MessageID: statusMsg.ID,
+			})
+
+			if err != nil {
+				log.Printf("Failed to delete status message: %v", err)
+			}
+		}()
 	}
 
 	filePath, err := h.downloader.DownloadVideo(ctx, url)
@@ -103,13 +117,22 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 		errorMsg := h.messageService.GetMessage(
 			ctx,
 			update.Message.From.ID,
-			"tiktok_download_error",
+			"video_download_error",
 		)
+
+		if errors.Is(err, service.ErrFileTooLarge) {
+			errorMsg = h.messageService.GetMessage(
+				ctx,
+				update.Message.From.ID,
+				"video_size_error",
+			)
+		}
+
 		if strings.Contains(err.Error(), "max-filesize") {
 			errorMsg = h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_size_error",
+				"video_size_error",
 			)
 		}
 
@@ -138,7 +161,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_uploading",
+				"video_uploading",
 			),
 		})
 
@@ -155,7 +178,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_download_error",
+				"video_download_error",
 			),
 		})
 
@@ -184,7 +207,7 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 			Text: h.messageService.GetMessage(
 				ctx,
 				update.Message.From.ID,
-				"tiktok_download_error",
+				"video_upload_error",
 			),
 		})
 
@@ -195,10 +218,4 @@ func (h *TiktokHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models
 		return
 	}
 
-	if statusMsg != nil {
-		_, _ = b.DeleteMessage(ctx, &tgbot.DeleteMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			MessageID: statusMsg.ID,
-		})
-	}
 }

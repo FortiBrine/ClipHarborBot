@@ -29,11 +29,11 @@ func New(
 	userLanguageRepository *repository.UserLanguageRepository,
 ) (*ClipHarborBot, error) {
 
-	defaultHandler := handler.NewDefaultHandler(messageService)
 	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
 	tiktokHandler := handler.NewTiktokHandler(messageService)
 	youtubeHandler := handler.NewYouTubeHandler(messageService)
 	startHandler := handler.NewStartHandler(messageService)
+	defaultHandler := handler.NewDefaultHandler(messageService, tiktokHandler, youtubeHandler)
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
