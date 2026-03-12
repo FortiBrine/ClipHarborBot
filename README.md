@@ -18,7 +18,7 @@
 - 🌐 Multi-language support
 - ⚡ Fast and reliable via [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - 🐳 Ready to deploy with **Docker Compose**
-- 🔒 Webhook-based architecture for security and performance
+- 🔄 Supports both **Polling** and **Webhook** modes
 - 🗄️ PostgreSQL for user data persistence
 
 ---
@@ -29,7 +29,6 @@
 
 - [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
 - A Telegram Bot token (get one from [@BotFather](https://t.me/BotFather))
-- A [Cloudflare](https://www.cloudflare.com/) account with **Cloudflare Tunnel** — required to expose the webhook endpoint over a public HTTPS URL (the Docker mode won't work without it)
 
 ### 1. Clone the repository
 
@@ -40,12 +39,32 @@ cd ClipHarborBot
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root.
+
+> **Note:** `BOT_MODE` can be set to `polling` or `webhook`. Defaults to `polling` if not set or invalid.
+
+#### Polling mode _(simpler, no public URL required)_
 
 ```env
 BOT_TOKEN=your_bot_token_here
+BOT_MODE=polling
+
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=clipharborbot_db
+```
+
+#### Webhook mode _(requires a public HTTPS URL)_
+
+```env
+BOT_TOKEN=your_bot_token_here
+BOT_MODE=webhook
 WEBHOOK_URL=https://your-domain.com/webhook
 WEBHOOK_SECRET=your_webhook_secret_here
+
+# Optional: only needed if you use Cloudflare Tunnel to expose the webhook
 CLOUDFLARE_TUNNEL_TOKEN=your_cloudflare_tunnel_token_here
 
 POSTGRES_HOST=postgres
@@ -57,13 +76,27 @@ POSTGRES_DB=clipharborbot_db
 
 ### 3. Start the bot
 
+#### Polling mode
+
+```bash
+docker compose up --build -d
+```
+
+#### Webhook mode — with your own reverse proxy / public IP
+
+```bash
+docker compose up --build -d
+```
+
+#### Webhook mode — with Cloudflare Tunnel
+
 ```bash
 docker compose --profile tunnel up --build -d
 ```
 
 The bot will automatically:
 - Run database migrations
-- Register the webhook with Telegram
+- Register the webhook with Telegram _(webhook mode only)_
 - Start listening for messages
 
 ### 4. Use the bot
@@ -87,7 +120,7 @@ pip install yt-dlp
 # Install Go dependencies
 go mod download
 
-# Run the bot
+# Run the bot (polling mode by default)
 go run ./cmd/bot/main.go
 ```
 
@@ -95,18 +128,26 @@ go run ./cmd/bot/main.go
 
 ```
 ClipHarborBot/
-├── cmd/bot/          # Application entry point
+├── cmd/bot/              # Application entry point
 ├── internal/
-│   ├── bot/          # Bot initialization & routing
-│   ├── config/       # Configuration loading
-│   ├── database/     # Database connection
-│   ├── handler/      # Telegram update handlers
-│   ├── messages/     # Localized messages
-│   ├── model/        # Data models
-│   ├── repository/   # Database repositories
-│   └── service/      # Business logic (downloader, etc.)
-├── compose.yml       # Docker Compose configuration
-└── Dockerfile
+│   ├── bot/              # Bot initialization & routing
+│   ├── config/           # Configuration loading (BOT_MODE, tokens, DB)
+│   ├── database/         # Database connection & migrations
+│   ├── handler/          # Telegram update handlers
+│   │   ├── default.go    # Fallback/unknown message handler
+│   │   ├── language.go   # Language selection handler
+│   │   ├── start.go      # /start command handler
+│   │   └── video.go      # Video download handler
+│   ├── messages/         # Localized messages
+│   ├── model/            # Data models
+│   ├── platform/         # Platform detection logic
+│   ├── repository/       # Database repositories
+│   └── service/          # Business logic
+│       ├── downloader.go     # yt-dlp wrapper
+│       └── message_service.go
+├── compose.yml           # Docker Compose configuration
+├── Dockerfile
+└── .env.example          # Example environment variables
 ```
 
 ---

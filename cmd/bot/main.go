@@ -50,13 +50,18 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/webhook", clipHarborBot.WebhookHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
 
+	if botConfig.Mode == config.ModeWebhook {
+		mux.Handle("/webhook", clipHarborBot.WebhookHandler())
+	}
+
 	go func() {
+		log.Println("HTTP server listening on :2000")
+
 		if err := http.ListenAndServe(":2000", mux); err != nil {
 			log.Printf("Failed to start HTTP server: %v", err)
 		}

@@ -26,7 +26,7 @@ type ClipHarborBot struct {
 }
 
 func New(
-	config *config.Config,
+	cfg *config.Config,
 	database *database.Database,
 	messageService *service.MessageService,
 	userLanguageRepository *repository.UserLanguageRepository,
@@ -48,10 +48,15 @@ func New(
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
-		tgbot.WithWebhookSecretToken(config.WebhookSecret),
 	}
 
-	bot, err := tgbot.New(config.Token, options...)
+	if cfg.Mode == config.ModeWebhook {
+		options = append(options,
+			tgbot.WithWebhookSecretToken(cfg.WebhookSecret),
+		)
+	}
+
+	bot, err := tgbot.New(cfg.Token, options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bot: %w", err)
 	}
@@ -109,18 +114,39 @@ func New(
 
 	return &ClipHarborBot{
 		bot:            bot,
-		botConfig:      config,
+		botConfig:      cfg,
 		database:       database,
 		messageService: messageService,
 	}, nil
 }
 
 func (b *ClipHarborBot) Start(ctx context.Context) error {
-	if _, err := b.bot.SetWebhook(ctx, &tgbot.SetWebhookParams{
-		URL:         b.botConfig.WebhookURL,
-		SecretToken: b.botConfig.WebhookSecret,
-	}); err != nil {
-		return fmt.Errorf("failed to set webhook: %w", err)
+
+	switch b.botConfig.Mode {
+	case config.ModeWebhook:
+		log.Printf("Starting bot in webhook mode with URL: %s", b.botConfig.WebhookURL)
+
+		_, err := b.bot.SetWebhook(ctx, &tgbot.SetWebhookParams{
+			URL:         b.botConfig.WebhookURL,
+			SecretToken: b.botConfig.WebhookSecret,
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to set webhook: %w", err)
+		}
+
+	case config.ModePolling:
+		log.Printf("Starting bot in polling mode")
+
+		_, err := b.bot.DeleteWebhook(ctx, &tgbot.DeleteWebhookParams{
+			DropPendingUpdates: true,
+		})
+
+		if err != nil {
+			fmt.Printf("failed to delete webhook: %w", err)
+		}
+	default:
+		return fmt.Errorf("invalid bot mode: %s", b.botConfig.Mode)
 	}
 
 	_, err := b.bot.SetMyCommands(ctx, &tgbot.SetMyCommandsParams{
@@ -147,6 +173,11 @@ func (b *ClipHarborBot) Start(ctx context.Context) error {
 
 	if err != nil {
 		return fmt.Errorf("failed to set bot commands: %w", err)
+	}
+
+	if b.botConfig.Mode == config.ModePolling {
+		b.bot.Start(ctx)
+		return nil
 	}
 
 	b.bot.StartWebhook(ctx)
