@@ -3,10 +3,13 @@ package bot
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	"github.com/FortiBrine/ClipHarborBot/internal/database"
+	"github.com/FortiBrine/ClipHarborBot/internal/platform"
 	"github.com/FortiBrine/ClipHarborBot/internal/repository"
 	"github.com/FortiBrine/ClipHarborBot/internal/service"
 	tgbot "github.com/go-telegram/bot"
@@ -30,10 +33,18 @@ func New(
 ) (*ClipHarborBot, error) {
 
 	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
-	tiktokHandler := handler.NewTiktokHandler(messageService)
-	youtubeHandler := handler.NewYouTubeHandler(messageService)
 	startHandler := handler.NewStartHandler(messageService)
-	defaultHandler := handler.NewDefaultHandler(messageService, tiktokHandler, youtubeHandler)
+	defaultHandler := handler.NewDefaultHandler(messageService)
+
+	downloader, err := service.NewDownloader()
+	if err != nil {
+		log.Printf("Failed to initialize downloader: %v", err)
+	}
+
+	downloader.StartCleanupWorker(10*time.Minute, 1*time.Hour)
+
+	tiktokHandler := handler.NewVideoHandler(messageService, downloader, platform.TikTok, "tiktok_help")
+	youtubeHandler := handler.NewVideoHandler(messageService, downloader, platform.YouTube, "youtube_help")
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
@@ -52,12 +63,28 @@ func New(
 		tiktokHandler.Handle,
 	)
 
+	for _, pattern := range platform.TikTok.Patterns {
+		bot.RegisterHandlerRegexp(
+			tgbot.HandlerTypeMessageText,
+			pattern,
+			tiktokHandler.Handle,
+		)
+	}
+
 	bot.RegisterHandler(
 		tgbot.HandlerTypeMessageText,
 		"youtube",
 		tgbot.MatchTypeCommandStartOnly,
 		youtubeHandler.Handle,
 	)
+
+	for _, pattern := range platform.YouTube.Patterns {
+		bot.RegisterHandlerRegexp(
+			tgbot.HandlerTypeMessageText,
+			pattern,
+			youtubeHandler.Handle,
+		)
+	}
 
 	bot.RegisterHandler(
 		tgbot.HandlerTypeMessageText,
@@ -97,6 +124,7 @@ func (b *ClipHarborBot) Start(ctx context.Context) error {
 	}
 
 	_, err := b.bot.SetMyCommands(ctx, &tgbot.SetMyCommandsParams{
+		Scope: &models.BotCommandScopeDefault{},
 		Commands: []models.BotCommand{
 			{
 				Command:     "start",

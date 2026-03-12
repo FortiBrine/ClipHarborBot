@@ -23,7 +23,7 @@ func main() {
 	db, err := database.New(botConfig)
 
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Printf("Failed to connect to database: %v", err)
 		return
 	}
 
@@ -31,7 +31,7 @@ func main() {
 	err = userLanguageRepository.Migrate()
 
 	if err != nil {
-		log.Fatalf("Failed to migrate user language repository: %v", err)
+		log.Printf("Failed to migrate user language repository: %v", err)
 	}
 
 	messageService := service.NewMessageService(userLanguageRepository)
@@ -44,7 +44,7 @@ func main() {
 	)
 
 	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
+		log.Printf("Failed to create bot: %v", err)
 		return
 	}
 
@@ -58,11 +58,11 @@ func main() {
 
 	go func() {
 		if err := http.ListenAndServe(":2000", mux); err != nil {
-			log.Fatalf("Failed to start HTTP server: %v", err)
+			log.Printf("Failed to start HTTP server: %v", err)
 		}
 	}()
 
 	if err = clipHarborBot.Start(ctx); err != nil {
-		log.Fatalf("Failed to start bot: %v", err)
+		log.Printf("Failed to start bot: %v", err)
 	}
 }

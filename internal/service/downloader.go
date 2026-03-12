@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -17,20 +16,19 @@ import (
 
 var ErrFileTooLarge = errors.New("file too large for telegram")
 
-type PlatformConfig struct {
-	Name     string
-	Patterns []*regexp.Regexp
-	Format   string
+type DownloadOptions struct {
+	URL    string
+	Format string
+	Prefix string
 }
 
 type Downloader struct {
 	tempDir string
-	config  PlatformConfig
 	timeout time.Duration
 	limiter chan struct{}
 }
 
-func NewDownloader(config PlatformConfig) (*Downloader, error) {
+func NewDownloader() (*Downloader, error) {
 	tempDir := filepath.Join(os.TempDir(), "clipharbor")
 
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
@@ -39,32 +37,21 @@ func NewDownloader(config PlatformConfig) (*Downloader, error) {
 
 	return &Downloader{
 		tempDir: tempDir,
-		config:  config,
 		timeout: 5 * time.Minute,
 		limiter: make(chan struct{}, 5),
 	}, nil
 }
 
-func (d *Downloader) IsValidURL(url string) bool {
-	for _, pattern := range d.config.Patterns {
-		if pattern.MatchString(url) {
-			return true
-		}
-	}
-	return false
-}
-
-func (d *Downloader) DownloadVideo(ctx context.Context, url string) (string, error) {
-	if !d.IsValidURL(url) {
-		return "", fmt.Errorf("invalid %s url", d.config.Name)
-	}
-
+func (d *Downloader) DownloadVideo(
+	ctx context.Context,
+	opts DownloadOptions,
+) (string, error) {
 	d.limiter <- struct{}{}
 	defer func() { <-d.limiter }()
 
 	output := filepath.Join(
 		d.tempDir,
-		fmt.Sprintf("%s_%d_%s.mp4", d.config.Name, time.Now().Unix(), uuid.NewString()),
+		fmt.Sprintf("%s_%d_%s.mp4", opts.Prefix, time.Now().Unix(), uuid.NewString()),
 	)
 
 	cmdCtx, cancel := context.WithTimeout(ctx, d.timeout)
@@ -75,12 +62,12 @@ func (d *Downloader) DownloadVideo(ctx context.Context, url string) (string, err
 		"--no-warnings",
 		"--no-progress",
 		"--restrict-filenames",
-		"-f", d.config.Format,
+		"-f", opts.Format,
 		"--merge-output-format", "mp4",
 		"-o", output,
 		"--max-filesize", "49M",
 		"--socket-timeout", "30",
-		url,
+		opts.URL,
 	}
 
 	cmd := exec.CommandContext(cmdCtx, "yt-dlp", args...)
