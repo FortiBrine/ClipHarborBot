@@ -16,16 +16,18 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 
 FROM alpine:3.23.3
 
-RUN apk add --no-cache yt-dlp curl && \
-    addgroup -g 1000 -S appgroup && \
-    adduser -u 1000 -S appuser -G appgroup -h /app
-
 WORKDIR /app
 
-RUN mkdir -p /app/temp && \
-    chown -R appuser:appgroup /app
+RUN addgroup -S appgroup \
+    && adduser -S appuser -G appgroup -h /app \
+    && install -d -o appuser -g appgroup /app/temp
 
-COPY --from=builder --chown=appuser:appgroup /build/clipharborbot /app/clipharborbot
+# install yt-dlp
+RUN wget -O /usr/local/bin/yt-dlp \
+        https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_musllinux \
+        && chmod +x /usr/local/bin/yt-dlp
+
+COPY --from=builder --chown=appuser:appgroup /build/clipharborbot .
 
 USER appuser
 
@@ -35,6 +37,6 @@ ENV TMPDIR=/app/temp \
     HOME=/app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fs http://localhost:2000/health || exit 1
+    CMD wget -q -O- http://localhost:2000/health || exit 1
 
 CMD ["/app/clipharborbot"]
