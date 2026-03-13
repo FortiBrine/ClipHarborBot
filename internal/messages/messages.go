@@ -19,6 +19,7 @@ var Messages = map[string]map[string]string{
 		"video_download_error":   "❌ Помилка при завантаженні відео. Спробуйте ще раз пізніше.",
 		"video_upload_error":     "❌ Помилка при відправці відео. Спробуйте ще раз пізніше.",
 		"video_size_error":       "❌ Відео занадто велике (більше 50MB). Telegram не підтримує такі великі файли.",
+		"video_format_error":     "❌ Непідтримуваний формат відео. Спробуйте інший формат або інше посилання.",
 		"video_download_success": "✅ Відео успішно завантажено!",
 	},
 	"en_US": {
@@ -32,6 +33,7 @@ var Messages = map[string]map[string]string{
 		"video_download_error":   "❌ Error downloading video. Please try again later.",
 		"video_upload_error":     "❌ Error uploading video. Please try again later.",
 		"video_size_error":       "❌ Video is too large (over 50MB). Telegram does not support such large files.",
+		"video_format_error":     "❌ Unsupported video format. Try a different format or a different link.",
 		"video_download_success": "✅ Video downloaded successfully!",
 	},
 }

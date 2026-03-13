@@ -143,11 +143,15 @@ func (h *VideoHandler) handleDownloadError(
 	err error,
 ) {
 
+	log.Printf("Download error: %v", err)
+
 	msg := "video_download_error"
 
-	if errors.Is(err, service.ErrFileTooLarge) ||
-		strings.Contains(err.Error(), "max-filesize") {
+	switch {
+	case errors.Is(err, service.ErrFileTooLarge):
 		msg = "video_size_error"
+	case errors.Is(err, service.ErrInvalidFormat):
+		msg = "video_format_error"
 	}
 
 	h.sendError(ctx, b, update, msg)

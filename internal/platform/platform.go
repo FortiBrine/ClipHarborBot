@@ -12,7 +12,7 @@ type Platform struct {
 
 var YouTube = &Platform{
 	Name:   "youtube",
-	Format: "best[height<=720][ext=mp4]/best[height<=720]",
+	Format: "best[ext=mp4][acodec!=none][vcodec!=none][height<=720][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][height<=720][filesize_approx<49M]",
 	Patterns: []*regexp.Regexp{
 		regexp.MustCompile(`^https?://(?:www\.)?youtube\.com/watch\?.*v=[\w-]+`),
 		regexp.MustCompile(`^https?://youtu\.be/[\w-]+`),
@@ -22,7 +22,7 @@ var YouTube = &Platform{
 
 var TikTok = &Platform{
 	Name:   "tiktok",
-	Format: "best[ext=mp4]",
+	Format: "\"best[ext=mp4][acodec!=none][vcodec!=none][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][filesize_approx<49M]",
 	Patterns: []*regexp.Regexp{
 		regexp.MustCompile(`^https?://(www\.)?tiktok\.com/@[\w\.-]+/video/\d+`),
 		regexp.MustCompile(`^https?://vt\.tiktok\.com/[\w-]+`),

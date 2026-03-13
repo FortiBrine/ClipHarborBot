@@ -14,7 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrFileTooLarge = errors.New("file too large for telegram")
+var (
+	ErrFileTooLarge  = errors.New("file too large for telegram")
+	ErrInvalidFormat = errors.New("requested format not available")
+)
 
 type DownloadOptions struct {
 	URL    string
@@ -29,6 +32,10 @@ type Downloader struct {
 }
 
 func NewDownloader() (*Downloader, error) {
+	if _, err := exec.LookPath("yt-dlp"); err != nil {
+		return nil, fmt.Errorf("yt-dlp not installed: %w", err)
+	}
+
 	tempDir := filepath.Join(os.TempDir(), "clipharbor")
 
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
@@ -81,6 +88,11 @@ func (d *Downloader) DownloadVideo(
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		outStr := string(out)
+		if strings.Contains(outStr, "Requested format is not available") {
+			return "", ErrInvalidFormat
+		}
+
 		return "", fmt.Errorf("download failed: %w (%s)", err, string(out))
 	}
 
@@ -146,7 +158,11 @@ func (d *Downloader) CleanupOldFiles(olderThan time.Duration) error {
 
 		if now.Sub(info.ModTime()) > olderThan {
 			path := filepath.Join(d.tempDir, entry.Name())
-			_ = os.Remove(path)
+			err = os.Remove(path)
+
+			if err != nil {
+				log.Printf("failed to remove old file: %v", err)
+			}
 		}
 	}
 
@@ -155,7 +171,11 @@ func (d *Downloader) CleanupOldFiles(olderThan time.Duration) error {
 
 func (d *Downloader) StartCleanupWorker(interval time.Duration, olderThan time.Duration) {
 	go func() {
-		_ = d.CleanupOldFiles(olderThan)
+		err := d.CleanupOldFiles(olderThan)
+
+		if err != nil {
+			log.Printf("initial cleanup error: %v", err)
+		}
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
