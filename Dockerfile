@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -14,7 +14,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     -o /build/clipharborbot \
     ./cmd/bot
 
-FROM alpine:3.23.3
+FROM alpine:3.23
+ARG YTDLP_VERSION=2026.03.13
 
 WORKDIR /app
 
@@ -24,7 +25,7 @@ RUN addgroup -S appgroup \
 
 # install yt-dlp
 RUN wget -O /usr/local/bin/yt-dlp \
-        https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_musllinux \
+        https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/yt-dlp_musllinux \
         && chmod +x /usr/local/bin/yt-dlp
 
 COPY --from=builder --chown=appuser:appgroup /build/clipharborbot .
