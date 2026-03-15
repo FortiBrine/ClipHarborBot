@@ -27,7 +27,7 @@ type Config struct {
 	PostgresDb   string
 }
 
-func Load() *Config {
+func Load() Config {
 	_ = godotenv.Load()
 
 	mode := Mode(os.Getenv("BOT_MODE"))
@@ -37,7 +37,7 @@ func Load() *Config {
 		mode = ModePolling
 	}
 
-	config := &Config{
+	config := Config{
 		Token:         os.Getenv("BOT_TOKEN"),
 		WebhookURL:    os.Getenv("WEBHOOK_URL"),
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),

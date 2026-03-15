@@ -4,19 +4,18 @@ import (
 	"context"
 	"log"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type LanguageHandler struct {
-	userLanguageRepository *user.LanguageRepository
+	userMessagesService *user.Service
 }
 
-func NewLanguageHandler(userLanguageRepository *user.LanguageRepository) *LanguageHandler {
+func NewLanguageHandler(userMessagesService *user.Service) *LanguageHandler {
 	return &LanguageHandler{
-		userLanguageRepository: userLanguageRepository,
+		userMessagesService: userMessagesService,
 	}
 }
 
@@ -31,14 +30,14 @@ func (h *LanguageHandler) LanguageCommand(ctx context.Context, b *tgbot.Bot, upd
 				{Text: "Українська", CallbackData: "lang_ukrainian_button"},
 				{Text: "English", CallbackData: "lang_english_button"},
 			}, {
-				{Text: "Polish", CallbackData: "lang_polish_button"},
+				{Text: "Polski", CallbackData: "lang_polish_button"},
 			},
 		},
 	}
 
 	_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
-		Text:        messages.ChangeLanguageMessage,
+		Text:        h.userMessagesService.T(ctx, update.Message.From.ID, "change_language_message"),
 		ReplyMarkup: keyboardButtons,
 	})
 
@@ -77,7 +76,7 @@ func (h *LanguageHandler) CallbackHandler(ctx context.Context, b *tgbot.Bot, upd
 		return
 	}
 
-	err = h.userLanguageRepository.SetUserLanguage(ctx, callbackQuery.From.ID, language)
+	err = h.userMessagesService.SetLanguage(ctx, callbackQuery.From.ID, language)
 	if err != nil {
 		log.Printf("Failed to set user language: %v", err)
 		return
@@ -93,7 +92,7 @@ func (h *LanguageHandler) CallbackHandler(ctx context.Context, b *tgbot.Bot, upd
 
 	_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: callbackQuery.Message.Message.Chat.ID,
-		Text:   messages.SelectedLanguageMessage,
+		Text:   h.userMessagesService.T(ctx, callbackQuery.Message.Message.From.ID, "selected_language_message"),
 	})
 
 	if err != nil {

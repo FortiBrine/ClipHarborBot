@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
-	"github.com/FortiBrine/ClipHarborBot/internal/database"
 	"github.com/FortiBrine/ClipHarborBot/internal/downloader"
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	"github.com/FortiBrine/ClipHarborBot/internal/platform"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	tgbot "github.com/go-telegram/bot"
@@ -20,35 +17,24 @@ import (
 )
 
 type ClipHarborBot struct {
-	bot            *tgbot.Bot
-	botConfig      *config.Config
-	database       *database.Database
-	messageService *messages.MessageService
+	bot       *tgbot.Bot
+	botConfig config.Config
 }
 
 func New(
-	cfg *config.Config,
-	database *database.Database,
-	messageService *messages.MessageService,
-	userLanguageRepository *user.LanguageRepository,
+	cfg config.Config,
+	userMessagesService *user.Service,
+	downloaderUtil *downloader.Downloader,
+	formatSelector *downloader.FormatSelector,
 ) (*ClipHarborBot, error) {
 
-	languageHandler := handler.NewLanguageHandler(userLanguageRepository)
-	startHandler := handler.NewStartHandler(messageService)
-	defaultHandler := handler.NewDefaultHandler(messageService)
+	languageHandler := handler.NewLanguageHandler(userMessagesService)
+	startHandler := handler.NewStartHandler(userMessagesService)
+	defaultHandler := handler.NewDefaultHandler(userMessagesService)
 
-	downloaderUtil, err := downloader.NewDownloader()
-	if err != nil {
-		log.Printf("Failed to initialize downloader: %v", err)
-	}
-
-	downloaderUtil.StartCleanupWorker(10*time.Minute, 1*time.Hour)
-
-	formatSelector := downloader.NewFormatSelector(49 * 1024 * 1024)
-
-	tiktokHandler := downloader.NewVideoHandler(messageService, downloaderUtil, formatSelector, platform.TikTok, "tiktok_help")
-	youtubeHandler := downloader.NewVideoHandler(messageService, downloaderUtil, formatSelector, platform.YouTube, "youtube_help")
-	instagramHandler := downloader.NewVideoHandler(messageService, downloaderUtil, formatSelector, platform.Instagram, "instagram_help")
+	tiktokHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.TikTok, "tiktok_help")
+	youtubeHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.YouTube, "youtube_help")
+	instagramHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.Instagram, "instagram_help")
 
 	options := []tgbot.Option{
 		tgbot.WithDefaultHandler(defaultHandler.Default),
@@ -132,10 +118,8 @@ func New(
 	)
 
 	return &ClipHarborBot{
-		bot:            bot,
-		botConfig:      cfg,
-		database:       database,
-		messageService: messageService,
+		bot:       bot,
+		botConfig: cfg,
 	}, nil
 }
 

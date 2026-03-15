@@ -1,0 +1,18 @@
+{
+  "unknown_command": "❌ Nieznana komenda",
+  "start_command": "Cześć! Jestem ClipHarborBot i pomogę Ci pobierać filmy z TikToka, YouTube i Instagrama. Po prostu wyślij mi link do wideo, a ja zajmę się resztą! 🚀",
+  "change_language_message": "🌐 Wybierz język:",
+  "selected_language_message": "✅ Język został zaktualizowany.",
+  "tiktok_help": "ℹ️ Użycie: /tiktok <URL filmu TikTok>\n\nPrzykład:\n/tiktok https://www.tiktok.com/@user/video/123456789",
+  "youtube_help": "ℹ️ Użycie: /youtube <URL filmu YouTube>\n\nPrzykład:\n/youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "instagram_help": "ℹ️ Użycie: /instagram <URL filmu Instagram>\n\nPrzykład:\n/instagram https://www.instagram.com/reel/CrqQfC0p8kK/",
+  "video_expected_size": "📦 Przewidywany rozmiar wideo: %s",
+  "video_downloading": "⏳ Pobieranie wideo...",
+  "video_uploading": "⬆️ Wysyłanie wideo...",
+  "invalid_video_url": "❌ Nieprawidłowy URL. Wyślij poprawny link.",
+  "video_download_error": "❌ Błąd podczas pobierania wideo. Spróbuj ponownie później.",
+  "video_upload_error": "❌ Błąd podczas wysyłania wideo. Spróbuj ponownie później.",
+  "video_size_error": "❌ Wideo jest zbyt duże (ponad 50MB). Telegram nie obsługuje tak dużych plików.",
+  "video_format_error": "❌ Nieobsługiwany format wideo. Spróbuj innego formatu lub innego linku.",
+  "video_download_success": "✅ Wideo zostało pomyślnie pobrane!"
+}

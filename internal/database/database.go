@@ -12,7 +12,7 @@ type Database struct {
 	GormDB *gorm.DB
 }
 
-func New(config *config.Config) (*Database, error) {
+func New(config config.Config) (*Database, error) {
 	db, err := gorm.Open(
 		postgres.Open(fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",

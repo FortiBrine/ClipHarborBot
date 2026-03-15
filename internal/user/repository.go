@@ -2,72 +2,45 @@ package user
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-type LanguageRepository struct {
+type LanguageRepository interface {
+	Migrate() error
+	GetUserLanguage(context.Context, int64) (string, error)
+	SetUserLanguage(context.Context, int64, string) error
+}
+
+type PostgresLanguageRepository struct {
 	database *database.Database
 }
 
-func NewUserLanguageRepository(database *database.Database) *LanguageRepository {
-	return &LanguageRepository{database: database}
+func NewPostgresLanguageRepository(database *database.Database) LanguageRepository {
+	return &PostgresLanguageRepository{database: database}
 }
 
-func (r *LanguageRepository) Migrate() error {
-	err := r.database.GormDB.AutoMigrate(&User{})
-
-	if err != nil {
-		return fmt.Errorf("failed to migrate user language repository: %w", err)
-	}
-
-	return nil
+func (r *PostgresLanguageRepository) Migrate() error {
+	return r.database.GormDB.AutoMigrate(&User{})
 }
 
-func (r *LanguageRepository) GetUserLanguage(ctx context.Context, telegramID int64) (string, error) {
-	user, err := gorm.G[User](r.database.GormDB).Where("id = ?", telegramID).First(ctx)
-
+func (r *PostgresLanguageRepository) GetUserLanguage(ctx context.Context, telegramID int64) (string, error) {
+	userLanguage, err := gorm.G[User](r.database.GormDB).Where("id = ?", telegramID).First(ctx)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", fmt.Errorf("user language not found: %w", err)
-		}
-
-		return "", fmt.Errorf("failed get user language: %w", err)
+		return "", err
 	}
 
-	return user.Language, nil
+	return userLanguage.Language, nil
 }
 
-func (r *LanguageRepository) SetUserLanguage(ctx context.Context, telegramID int64, language string) error {
-	user, err := gorm.G[User](r.database.GormDB).Where("id = ?", telegramID).First(ctx)
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			user = User{
-				ID:       telegramID,
-				Language: language,
-			}
-
-			if err = gorm.G[User](r.database.GormDB).Create(ctx, &user); err != nil {
-				return fmt.Errorf("failed to create user with language: %w", err)
-			}
-
-			return nil
-		}
-
-		return fmt.Errorf("failed set user language: %w", err)
-	}
-
-	user.Language = language
-	_, err = gorm.G[User](r.database.GormDB).Where("id = ?", telegramID).Update(ctx, "language", language)
-
-	if err != nil {
-		return fmt.Errorf("failed to update user language: %w", err)
-	}
-
-	return nil
-
+func (r *PostgresLanguageRepository) SetUserLanguage(ctx context.Context, telegramID int64, language string) error {
+	return gorm.G[User](r.database.GormDB, clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"language"}),
+	}).Create(ctx, &User{
+		ID:       telegramID,
+		Language: language,
+	})
 }

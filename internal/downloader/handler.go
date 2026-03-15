@@ -9,33 +9,33 @@ import (
 	"strings"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/humanize"
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	"github.com/FortiBrine/ClipHarborBot/internal/platform"
+	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type VideoHandler struct {
-	messageService *messages.MessageService
-	downloader     *Downloader
-	formatSelector *FormatSelector
-	platform       *platform.Platform
-	helpMessageKey string
+	userMessagesService *user.Service
+	downloader          *Downloader
+	formatSelector      *FormatSelector
+	platform            *platform.Platform
+	helpMessageKey      string
 }
 
 func NewVideoHandler(
-	messageService *messages.MessageService,
+	userMessagesService *user.Service,
 	downloader *Downloader,
 	formatSelector *FormatSelector,
 	platform *platform.Platform,
 	helpKey string,
 ) *VideoHandler {
 	return &VideoHandler{
-		messageService: messageService,
-		downloader:     downloader,
-		formatSelector: formatSelector,
-		platform:       platform,
-		helpMessageKey: helpKey,
+		userMessagesService: userMessagesService,
+		downloader:          downloader,
+		formatSelector:      formatSelector,
+		platform:            platform,
+		helpMessageKey:      helpKey,
 	}
 }
 
@@ -57,11 +57,7 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 	if !h.platform.IsValidURL(url) {
 		_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text: h.messageService.GetMessage(
-				ctx,
-				update.Message.From.ID,
-				"invalid_video_url",
-			),
+			Text:   h.userMessagesService.T(ctx, update.Message.From.ID, "invalid_video_url"),
 		})
 
 		if err != nil {
@@ -82,7 +78,7 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text: fmt.Sprintf(
-				h.messageService.GetMessage(ctx, update.Message.From.ID, "video_expected_size"),
+				h.userMessagesService.T(ctx, update.Message.From.ID, "video_expected_size"),
 				humanize.FormatBytes(formatResult.Filesize),
 			),
 		})
@@ -96,11 +92,7 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 
 	statusMsg, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text: h.messageService.GetMessage(
-			ctx,
-			update.Message.From.ID,
-			"video_downloading",
-		),
+		Text:   h.userMessagesService.T(ctx, update.Message.From.ID, "video_downloading"),
 	})
 
 	if err != nil {
@@ -129,11 +121,7 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 		_, err := b.EditMessageText(ctx, &tgbot.EditMessageTextParams{
 			ChatID:    update.Message.Chat.ID,
 			MessageID: statusMsg.ID,
-			Text: h.messageService.GetMessage(
-				ctx,
-				update.Message.From.ID,
-				"video_uploading",
-			),
+			Text:      h.userMessagesService.T(ctx, update.Message.From.ID, "video_uploading"),
 		})
 		if err != nil {
 			log.Printf("Failed to edit message text: %v", err)
@@ -193,11 +181,7 @@ func (h *VideoHandler) sendError(
 ) {
 	_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text: h.messageService.GetMessage(
-			ctx,
-			update.Message.From.ID,
-			key,
-		),
+		Text:   h.userMessagesService.T(ctx, update.Message.From.ID, key),
 	})
 
 	if err != nil {

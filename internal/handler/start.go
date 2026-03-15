@@ -4,20 +4,20 @@ import (
 	"context"
 	"log"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
+	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type StartHandler struct {
-	messageService *messages.MessageService
+	userMessagesService *user.Service
 }
 
 func NewStartHandler(
-	messageService *messages.MessageService,
+	userMessagesService *user.Service,
 ) *StartHandler {
 	return &StartHandler{
-		messageService: messageService,
+		userMessagesService: userMessagesService,
 	}
 }
 
@@ -28,11 +28,7 @@ func (h *StartHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 
 	_, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text: h.messageService.GetMessage(
-			ctx,
-			update.Message.From.ID,
-			"start_command",
-		),
+		Text:   h.userMessagesService.T(ctx, update.Message.From.ID, "start_command"),
 	})
 
 	if err != nil {
