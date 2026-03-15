@@ -1,4 +1,4 @@
-package service
+package downloader
 
 import (
 	"context"
@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	ErrFileTooLarge  = errors.New("file too large for telegram")
-	ErrInvalidFormat = errors.New("requested format not available")
+	ErrFileTooLarge = errors.New("file too large for telegram")
 )
 
 type DownloadOptions struct {

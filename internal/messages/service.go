@@ -1,19 +1,18 @@
-package service
+package messages
 
 import (
 	"context"
 	"log"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/messages"
-	"github.com/FortiBrine/ClipHarborBot/internal/repository"
+	"github.com/FortiBrine/ClipHarborBot/internal/user"
 )
 
 type MessageService struct {
-	userLanguageRepository *repository.UserLanguageRepository
+	userLanguageRepository *user.LanguageRepository
 }
 
 func NewMessageService(
-	userLanguageRepository *repository.UserLanguageRepository,
+	userLanguageRepository *user.LanguageRepository,
 ) *MessageService {
 	return &MessageService{
 		userLanguageRepository: userLanguageRepository,
@@ -26,11 +25,11 @@ func (s *MessageService) GetMessage(ctx context.Context, userID int64, messageKe
 	if err != nil {
 		log.Printf("Failed to get user language for user %d: %v. Defaulting to Ukrainian.", userID, err)
 
-		for lang := range messages.Messages {
+		for lang := range Messages {
 			userLanguage = lang
 			break
 		}
 	}
 
-	return messages.Messages[userLanguage][messageKey]
+	return Messages[userLanguage][messageKey]
 }

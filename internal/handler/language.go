@@ -5,16 +5,16 @@ import (
 	"log"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/messages"
-	"github.com/FortiBrine/ClipHarborBot/internal/repository"
+	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type LanguageHandler struct {
-	userLanguageRepository *repository.UserLanguageRepository
+	userLanguageRepository *user.LanguageRepository
 }
 
-func NewLanguageHandler(userLanguageRepository *repository.UserLanguageRepository) *LanguageHandler {
+func NewLanguageHandler(userLanguageRepository *user.LanguageRepository) *LanguageHandler {
 	return &LanguageHandler{
 		userLanguageRepository: userLanguageRepository,
 	}

@@ -30,9 +30,22 @@ var TikTok = &Platform{
 	},
 }
 
+var Instagram = &Platform{
+	Name:   "instagram",
+	Format: "best[ext=mp4][acodec!=none][vcodec!=none][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][filesize_approx<49M]",
+	Patterns: []*regexp.Regexp{
+		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/(?:reel|p)/[\w-]+/?`),
+		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/reels/[\w-]+/?`),
+		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/stories/[\w\.-]+/\d+/?`),
+		regexp.MustCompile(`^https?://(?:www\.)?instagr\.am/(?:reel|p)/[\w-]+/?`),
+		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/share/(?:reel|p|story)/[\w-]+/?`),
+	},
+}
+
 var Platforms = []*Platform{
 	YouTube,
 	TikTok,
+	Instagram,
 }
 
 func (p *Platform) IsValidURL(url string) bool {

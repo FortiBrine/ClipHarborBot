@@ -10,8 +10,8 @@ import (
 	"github.com/FortiBrine/ClipHarborBot/internal/bot"
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	"github.com/FortiBrine/ClipHarborBot/internal/database"
-	"github.com/FortiBrine/ClipHarborBot/internal/repository"
-	"github.com/FortiBrine/ClipHarborBot/internal/service"
+	"github.com/FortiBrine/ClipHarborBot/internal/messages"
+	"github.com/FortiBrine/ClipHarborBot/internal/user"
 )
 
 func main() {
@@ -27,14 +27,14 @@ func main() {
 		return
 	}
 
-	userLanguageRepository := repository.NewUserLanguageRepository(db)
+	userLanguageRepository := user.NewUserLanguageRepository(db)
 	err = userLanguageRepository.Migrate()
 
 	if err != nil {
 		log.Printf("Failed to migrate user language repository: %v", err)
 	}
 
-	messageService := service.NewMessageService(userLanguageRepository)
+	messageService := messages.NewMessageService(userLanguageRepository)
 
 	clipHarborBot, err := bot.New(
 		botConfig,

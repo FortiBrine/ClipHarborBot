@@ -1,34 +1,39 @@
-package handler
+package downloader
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/FortiBrine/ClipHarborBot/internal/humanize"
+	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	"github.com/FortiBrine/ClipHarborBot/internal/platform"
-	"github.com/FortiBrine/ClipHarborBot/internal/service"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type VideoHandler struct {
-	messageService *service.MessageService
-	downloader     *service.Downloader
+	messageService *messages.MessageService
+	downloader     *Downloader
+	formatSelector *FormatSelector
 	platform       *platform.Platform
 	helpMessageKey string
 }
 
 func NewVideoHandler(
-	messageService *service.MessageService,
-	downloader *service.Downloader,
+	messageService *messages.MessageService,
+	downloader *Downloader,
+	formatSelector *FormatSelector,
 	platform *platform.Platform,
 	helpKey string,
 ) *VideoHandler {
 	return &VideoHandler{
 		messageService: messageService,
 		downloader:     downloader,
+		formatSelector: formatSelector,
 		platform:       platform,
 		helpMessageKey: helpKey,
 	}
@@ -66,6 +71,29 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 		return
 	}
 
+	formatResult, err := h.formatSelector.ChooseFormat(ctx, &YTDLPFetcher{}, url)
+	if err != nil {
+		log.Printf("Failed to choose format: %v", err)
+		h.sendError(ctx, b, update, "video_format_error")
+		return
+	}
+
+	if formatResult.Filesize > 0 {
+		_, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text: fmt.Sprintf(
+				h.messageService.GetMessage(ctx, update.Message.From.ID, "video_expected_size"),
+				humanize.FormatBytes(formatResult.Filesize),
+			),
+		})
+
+		if err != nil {
+			log.Printf("Failed to send video expected size: %v", err)
+		}
+	} else {
+		return
+	}
+
 	statusMsg, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text: h.messageService.GetMessage(
@@ -80,9 +108,9 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 		return
 	}
 
-	filePath, err := h.downloader.DownloadVideo(ctx, service.DownloadOptions{
+	filePath, err := h.downloader.DownloadVideo(ctx, DownloadOptions{
 		URL:    url,
-		Format: h.platform.Format,
+		Format: formatResult.FormatID,
 		Prefix: h.platform.Name,
 	})
 	if err != nil {
@@ -90,7 +118,7 @@ func (h *VideoHandler) Handle(ctx context.Context, b *tgbot.Bot, update *models.
 		return
 	}
 
-	defer func(downloader *service.Downloader, filePath string) {
+	defer func(downloader *Downloader, filePath string) {
 		err := downloader.CleanupFile(filePath)
 		if err != nil {
 			log.Printf("Failed to cleanup %s: %v", filePath, err)
@@ -148,9 +176,9 @@ func (h *VideoHandler) handleDownloadError(
 	msg := "video_download_error"
 
 	switch {
-	case errors.Is(err, service.ErrFileTooLarge):
+	case errors.Is(err, ErrFileTooLarge):
 		msg = "video_size_error"
-	case errors.Is(err, service.ErrInvalidFormat):
+	case errors.Is(err, ErrInvalidFormat):
 		msg = "video_format_error"
 	}
 

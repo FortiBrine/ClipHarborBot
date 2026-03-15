@@ -4,17 +4,17 @@ import (
 	"context"
 	"log"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/service"
+	"github.com/FortiBrine/ClipHarborBot/internal/messages"
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type StartHandler struct {
-	messageService *service.MessageService
+	messageService *messages.MessageService
 }
 
 func NewStartHandler(
-	messageService *service.MessageService,
+	messageService *messages.MessageService,
 ) *StartHandler {
 	return &StartHandler{
 		messageService: messageService,
