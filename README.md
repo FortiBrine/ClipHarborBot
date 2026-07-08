@@ -1,10 +1,10 @@
-# 🎬 ClipHarborBot
+# ClipHarborBot
 
-> A Telegram bot that downloads videos from **TikTok**, **YouTube**, **Instagram** and more — right into your chat.
+A Telegram bot that downloads videos from TikTok, YouTube, Instagram, and more, right into your chat.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 | Start | Download |
 |-------|----------|
@@ -12,18 +12,18 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- 📥 Download videos from **TikTok**, **YouTube**, and **Instagram** _(more platforms coming soon)_
-- 🌐 Multi-language support
-- ⚡ Fast and reliable via [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- 🐳 Ready to deploy with **Docker Compose**
-- 🔄 Supports both **Polling** and **Webhook** modes
-- 🗄️ PostgreSQL for user data persistence
+- Download videos from TikTok, YouTube, and Instagram (more platforms planned)
+- Multi-language support
+- Fast and reliable downloads via [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- Deploys with Docker Compose
+- Supports both polling and webhook modes
+- PostgreSQL for user data persistence
 
 ---
 
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
 
@@ -41,7 +41,7 @@ cd ClipHarborBot
 
 Create a `.env` file in the project root.
 
-> **Note:** `BOT_MODE` can be set to `polling` or `webhook`. Defaults to `polling` if not set or invalid.
+> **Note:** `BOT_MODE` can be set to `polling` or `webhook`. It defaults to `polling` if not set or invalid.
 
 #### Polling mode _(simpler, no public URL required)_
 
@@ -82,13 +82,13 @@ POSTGRES_DB=clipharborbot_db
 docker compose up --build -d
 ```
 
-#### Webhook mode — with your own reverse proxy / public IP
+#### Webhook mode, with your own reverse proxy or public IP
 
 ```bash
 docker compose up --build -d
 ```
 
-#### Webhook mode — with Cloudflare Tunnel
+#### Webhook mode, with Cloudflare Tunnel
 
 ```bash
 docker compose --profile tunnel up --build -d
@@ -96,22 +96,22 @@ docker compose --profile tunnel up --build -d
 
 The bot will automatically:
 - Run database migrations
-- Register the webhook with Telegram _(webhook mode only)_
+- Register the webhook with Telegram (webhook mode only)
 - Start listening for messages
 
 ### 4. Use the bot
 
 1. Open Telegram and find your bot.
 2. Send `/start` to begin.
-3. Paste a **TikTok**, **YouTube**, or **Instagram** link — the bot will download and send the video back to you.
+3. Paste a TikTok, YouTube, or Instagram link. The bot downloads it and sends the video back to you.
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Run locally (without Docker)
 
-Make sure you have **Go 1.25+** and **yt-dlp** installed.
+Make sure you have Go 1.25+ and yt-dlp installed.
 
 ```bash
 # Install yt-dlp
@@ -152,15 +152,15 @@ ClipHarborBot/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome. Here's how to get started:
 
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feat/your-feature`
-3. **Commit** your changes: `git commit -m "feat: add your feature"`
-4. **Push** to the branch: `git push origin feat/your-feature`
-5. **Open a Pull Request** — describe what you've changed and why
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push to the branch: `git push origin feat/your-feature`
+5. Open a pull request, describing what you've changed and why
 
 ### Guidelines
 
@@ -171,17 +171,17 @@ Contributions are welcome! Here's how to get started:
 
 ---
 
-## 💖 Support the Developer
+## Support the developer
 
 If you find this project useful, consider supporting its development:
 
-| Method | Link                                  |
-|--------|---------------------------------------|
-| ☕ Buy Me a Coffee | Coming soon                           |
-| ⭐ GitHub Star | Just star this repo — it helps a lot! |
+| Method | Link |
+|--------|------|
+| Buy Me a Coffee | Coming soon |
+| GitHub Star | Just star this repo, it helps a lot |
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.
+This project is dual-licensed under Apache License 2.0 or MIT, at your option. See [LICENSE-APACHE](LICENSE-APACHE) and [LICENSE-MIT](LICENSE-MIT) for details.

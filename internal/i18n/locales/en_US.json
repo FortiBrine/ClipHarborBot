@@ -1,6 +1,6 @@
 {
   "unknown_command": "❌ Unknown command",
-  "start_command": "Hello! I'm ClipHarborBot, and I'm here to help you download videos from TikTok, YouTube, and Instagram. Just send me a link to the video, and I'll take care of the rest! 🚀",
+  "start_command": "Hi, I'm ClipHarborBot. Send me a TikTok, YouTube, or Instagram link and I'll download the video for you.",
   "change_language_message": "🌐 Choose your language:",
   "selected_language_message": "✅ Language updated.",
   "tiktok_help": "ℹ️ Usage: /tiktok <TikTok video URL>\n\nExample:\n/tiktok https://www.tiktok.com/@user/video/123456789",
@@ -14,6 +14,6 @@
   "video_upload_error": "❌ Error uploading video. Please try again later.",
   "video_size_error": "❌ Video is too large (over 50MB). Telegram does not support such large files.",
   "video_format_error": "❌ Unsupported video format. Try a different format or a different link.",
-  "video_download_success": "✅ Video downloaded successfully!"
+  "video_download_success": "✅ Video downloaded."
 }
 

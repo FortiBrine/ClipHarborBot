@@ -1,6 +1,6 @@
 {
   "unknown_command": "❌ Невідома команда",
-  "start_command": "Привіт! Я ClipHarborBot, і я допоможу тобі завантажувати відео з TikTok, YouTube та Instagram. Просто надішли мені посилання на відео, і я зроблю все інше! 🚀",
+  "start_command": "Привіт, я ClipHarborBot. Надішли посилання на TikTok, YouTube чи Instagram, і я завантажу відео.",
   "change_language_message": "🌐 Обери мову:",
   "selected_language_message": "✅ Мову змінено.",
   "tiktok_help": "ℹ️ Використання: /tiktok <посилання на TikTok відео>\n\nПриклад:\n/tiktok https://www.tiktok.com/@user/video/123456789",
@@ -14,6 +14,6 @@
   "video_upload_error": "❌ Помилка при відправці відео. Спробуйте ще раз пізніше.",
   "video_size_error": "❌ Відео занадто велике (більше 50MB). Telegram не підтримує такі великі файли.",
   "video_format_error": "❌ Непідтримуваний формат відео. Спробуйте інший формат або інше посилання.",
-  "video_download_success": "✅ Відео успішно завантажено!"
+  "video_download_success": "✅ Відео завантажено."
 }
 
