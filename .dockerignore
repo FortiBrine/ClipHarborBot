@@ -1,6 +1,10 @@
 .idea
 .env*
 
+/internal/store/*
+!/internal/store/migrate.go
+!/internal/store/postgres.go
+
 .git*
 .dockerignore
 Dockerfile

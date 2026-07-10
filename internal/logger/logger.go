@@ -13,9 +13,9 @@ func New(env config.Environment) *slog.Logger {
 		level = slog.LevelDebug
 	}
 
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	handler := slog.NewJSONHandler(os.Stdout, new(slog.HandlerOptions{
 		Level: level,
-	})
+	}))
 
 	return slog.New(handler)
 }

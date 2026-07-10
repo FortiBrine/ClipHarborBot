@@ -17,9 +17,10 @@ const (
 func (e Environment) IsDev() bool { return e == EnvDev }
 
 type Config struct {
-	Environment     Environment   `env:"ENVIRONMENT" envDefault:"dev"`
-	DefaultLang     string        `env:"DEFAULT_LANG" envDefault:"en"`
-	DownloadTimeout time.Duration `env:"DOWNLOAD_TIMEOUT" envDefault:"5m"`
+	Environment         Environment   `env:"ENVIRONMENT" envDefault:"dev"`
+	DefaultLang         string        `env:"DEFAULT_LANG" envDefault:"en"`
+	DownloadTimeout     time.Duration `env:"DOWNLOAD_TIMEOUT" envDefault:"5m"`
+	HttpShutdownTimeout time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT" envDefault:"10s"`
 
 	TelegramToken string `env:"TELEGRAM_TOKEN,required"`
 	WebhookURL    string `env:"WEBHOOK_URL"`
@@ -34,6 +35,6 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	_ = godotenv.Load()
+	godotenv.Load()
 	return env.ParseAs[Config]()
 }

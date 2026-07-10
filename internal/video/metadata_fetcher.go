@@ -35,8 +35,8 @@ func (f *YTDLPFetcher) Fetch(ctx context.Context, url string) (*Meta, error) {
 		url,
 	)
 
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
+	buf := new(bytes.Buffer)
+	cmd.Stdout = buf
 
 	if err := cmd.Run(); err != nil {
 		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
@@ -46,10 +46,10 @@ func (f *YTDLPFetcher) Fetch(ctx context.Context, url string) (*Meta, error) {
 		return nil, fmt.Errorf("running yt-dlp: %w", err)
 	}
 
-	var meta Meta
+	meta := new(Meta)
 
-	decoder := json.NewDecoder(io.LimitReader(&buf, 10<<20))
-	if err := decoder.Decode(&meta); err != nil {
+	decoder := json.NewDecoder(io.LimitReader(buf, 10<<20))
+	if err := decoder.Decode(meta); err != nil {
 		return nil, fmt.Errorf("decoding yt-dlp error: %w", err)
 	}
 
@@ -57,5 +57,5 @@ func (f *YTDLPFetcher) Fetch(ctx context.Context, url string) (*Meta, error) {
 		return nil, ErrInvalidMetadata
 	}
 
-	return &meta, nil
+	return meta, nil
 }

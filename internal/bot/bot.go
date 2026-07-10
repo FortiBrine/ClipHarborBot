@@ -2,41 +2,52 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
-	"github.com/FortiBrine/ClipHarborBot/internal/database"
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
+	"github.com/FortiBrine/ClipHarborBot/internal/store"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	"github.com/FortiBrine/ClipHarborBot/internal/video"
 	tgbot "github.com/go-telegram/bot"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
 type Bot struct {
-	bot    *tgbot.Bot
 	logger *slog.Logger
+	bot    *tgbot.Bot
+	pool   *pgxpool.Pool
 }
 
 func New(
 	ctx context.Context, cfg config.Config,
 	logger *slog.Logger,
 ) (b *Bot, err error) {
-	db, err := database.NewPostgres(cfg)
+	pool, err := store.NewPostgres(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("creating database: %w", err)
+		return nil, fmt.Errorf("creating store: %w", err)
 	}
+	db := stdlib.OpenDBFromPool(pool)
+	defer db.Close()
+	if err = store.Migrate(ctx, db); err != nil {
+		return nil, fmt.Errorf("migrating store: %w", err)
+	}
+	defer func(p *pgxpool.Pool) {
+		if err != nil {
+			p.Close()
+		}
+	}(pool)
 
 	i18nService := i18n.NewService()
 	if err = i18nService.LoadTranslations(); err != nil {
 		return nil, fmt.Errorf("loading translations: %w", err)
 	}
 
-	userRepository := user.NewPostgresRepository(db)
-	if err = userRepository.Migrate(); err != nil {
-		return nil, fmt.Errorf("migrating database: %w", err)
-	}
+	userRepository := user.NewPostgresRepository(pool)
 	userService := user.NewService(userRepository, cfg.DefaultLang)
 
 	maxSize := int64(49 * 1024 * 1024)
@@ -80,8 +91,9 @@ func New(
 	)
 
 	b = new(Bot{
-		bot:    bot,
 		logger: logger,
+		bot:    bot,
+		pool:   pool,
 	})
 
 	return
@@ -104,13 +116,26 @@ func (b *Bot) Start(ctx context.Context, cfg config.Config) error {
 		})
 		mux.Handle("/webhook", b.bot.WebhookHandler())
 
-		b.bot.StartWebhook(ctx)
+		srv := new(http.Server{
+			Addr:    cfg.HttpAddress,
+			Handler: mux,
+		})
 
 		go func(logger *slog.Logger) {
-			if err := http.ListenAndServe(cfg.HttpAddress, mux); err != nil {
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				logger.Error("error starting HTTP server", "error", err)
 			}
 		}(b.logger)
+
+		b.bot.StartWebhook(ctx)
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HttpShutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			b.logger.Error("error shutting down HTTP server", "error", err)
+		}
+
 		return nil
 	}
 
@@ -123,4 +148,8 @@ func (b *Bot) Start(ctx context.Context, cfg config.Config) error {
 	b.bot.Start(ctx)
 
 	return nil
+}
+
+func (b *Bot) Close() {
+	b.pool.Close()
 }

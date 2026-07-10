@@ -1,20 +1,27 @@
-FROM golang:1.25-alpine3.23 AS builder
+FROM docker.io/library/golang:1.26.4-alpine3.24 AS builder
 
 WORKDIR /build
 
 COPY go.mod go.sum ./
 
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go tool sqlc generate
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux \
     go build -trimpath \
     -ldflags="-w -s" \
     -o /build/clipharborbot \
     ./cmd/bot
 
-FROM alpine:3.23
+FROM docker.io/library/alpine:3.24
 ARG YTDLP_VERSION=2026.03.13
 
 WORKDIR /app

@@ -36,7 +36,7 @@ func (h *Handler) SetLanguage(ctx context.Context, b *tgbot.Bot, update *models.
 
 	localizer := h.i18nService.FromLanguage(lang)
 
-	keyboardButtons := &models.InlineKeyboardMarkup{
+	keyboardButtons := new(models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
 				{Text: "Українська", CallbackData: "lang_ukrainian_button"},
@@ -45,13 +45,13 @@ func (h *Handler) SetLanguage(ctx context.Context, b *tgbot.Bot, update *models.
 				{Text: "Polski", CallbackData: "lang_polish_button"},
 			},
 		},
-	}
+	})
 
-	if _, err = b.SendMessage(ctx, &tgbot.SendMessageParams{
+	if _, err = b.SendMessage(ctx, new(tgbot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
 		Text:        i18n.T(localizer, "change_language_message"),
 		ReplyMarkup: keyboardButtons,
-	}); err != nil {
+	})); err != nil {
 		h.logger.Error("sending user language message", "error", err)
 	}
 }
@@ -69,10 +69,10 @@ func (h *Handler) CallbackHandler(ctx context.Context, b *tgbot.Bot, update *mod
 
 	localizer := h.i18nService.FromLanguage(lang)
 
-	if _, err := b.AnswerCallbackQuery(ctx, &tgbot.AnswerCallbackQueryParams{
+	if _, err := b.AnswerCallbackQuery(ctx, new(tgbot.AnswerCallbackQueryParams{
 		CallbackQueryID: callbackQuery.ID,
 		ShowAlert:       false,
-	}); err != nil {
+	})); err != nil {
 		h.logger.Error("answering callback query", "error", err)
 		return
 	}
@@ -91,22 +91,22 @@ func (h *Handler) CallbackHandler(ctx context.Context, b *tgbot.Bot, update *mod
 		return
 	}
 
-	if err := h.service.SetLanguage(ctx, callbackQuery.From.ID, language); err != nil {
+	if err = h.service.SetLanguage(ctx, callbackQuery.From.ID, language); err != nil {
 		h.logger.Error("setting language", "error", err)
 		return
 	}
 
-	if _, err := b.DeleteMessage(ctx, &tgbot.DeleteMessageParams{
+	if _, err := b.DeleteMessage(ctx, new(tgbot.DeleteMessageParams{
 		ChatID:    callbackQuery.Message.Message.Chat.ID,
 		MessageID: callbackQuery.Message.Message.ID,
-	}); err != nil {
+	})); err != nil {
 		h.logger.Error("deleting message", "error", err)
 	}
 
-	if _, err := b.SendMessage(ctx, &tgbot.SendMessageParams{
+	if _, err := b.SendMessage(ctx, new(tgbot.SendMessageParams{
 		ChatID: callbackQuery.Message.Message.Chat.ID,
 		Text:   i18n.T(localizer, "selected_language_message"),
-	}); err != nil {
+	})); err != nil {
 		h.logger.Error("sending user language message", "error", err)
 	}
 }

@@ -21,7 +21,7 @@ type Service struct {
 func NewService() *Service {
 	bundle := i18n.NewBundle(language.Ukrainian)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-	return &Service{bundle: bundle}
+	return new(Service{bundle: bundle})
 }
 
 func (s *Service) LoadTranslations() error {
@@ -38,7 +38,7 @@ func (s *Service) FromLanguage(lang string) *Localizer {
 }
 
 func T(l *Localizer, messageID string, data ...map[string]any) string {
-	cfg := &i18n.LocalizeConfig{MessageID: messageID}
+	cfg := new(i18n.LocalizeConfig{MessageID: messageID})
 	if len(data) > 0 {
 		cfg.TemplateData = data[0]
 	}

@@ -1,3 +1,7 @@
 .idea
 .env*
 !.env.example
+
+/internal/store/*
+!/internal/store/migrate.go
+!/internal/store/postgres.go

@@ -29,7 +29,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer func(b *bot.Bot) {
-
+		b.Close()
 	}(b)
 
 	if err = b.Start(ctx, cfg); err != nil {

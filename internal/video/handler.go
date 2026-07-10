@@ -101,10 +101,10 @@ func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
 			h.logger.Error("sending message to user", "error", err)
 		}
 
-		statusMsg, err := bot.SendMessage(ctx, &tgbot.SendMessageParams{
+		statusMsg, err := bot.SendMessage(ctx, new(tgbot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   i18n.T(localizer, "video_downloading"),
-		})
+		}))
 
 		if err != nil {
 			h.logger.Error("sending message to user", "error", err)
@@ -123,11 +123,11 @@ func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
 		defer h.downloader.CleanupFile(filePath)
 
 		if statusMsg != nil {
-			if _, err = bot.EditMessageText(ctx, &tgbot.EditMessageTextParams{
+			if _, err = bot.EditMessageText(ctx, new(tgbot.EditMessageTextParams{
 				ChatID:    update.Message.Chat.ID,
 				MessageID: statusMsg.ID,
 				Text:      i18n.T(localizer, "video_uploading"),
-			}); err != nil {
+			})); err != nil {
 				h.logger.Error("editing message to user", "error", err)
 			}
 		}
@@ -140,10 +140,10 @@ func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
 		}
 		defer file.Close()
 
-		if _, err = bot.SendVideo(ctx, &tgbot.SendVideoParams{
+		if _, err = bot.SendVideo(ctx, new(tgbot.SendVideoParams{
 			ChatID: update.Message.Chat.ID,
-			Video:  &models.InputFileUpload{Filename: filePath, Data: file},
-		}); err != nil {
+			Video:  new(models.InputFileUpload{Filename: filePath, Data: file}),
+		})); err != nil {
 			h.logger.Error("sending video", "error", err)
 			h.sendError(ctx, bot, update, localizer, "video_upload_error")
 		}
@@ -176,10 +176,10 @@ func (h *Handler) sendError(
 	localizer *i18n.Localizer,
 	key string,
 ) {
-	if _, err := bot.SendMessage(ctx, &tgbot.SendMessageParams{
+	if _, err := bot.SendMessage(ctx, new(tgbot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text:   i18n.T(localizer, key),
-	}); err != nil {
+	})); err != nil {
 		h.logger.Error("sending error message to user", "error", err)
 	}
 }
