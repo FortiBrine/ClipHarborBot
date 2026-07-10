@@ -1,4 +1,4 @@
-package platform
+package video
 
 import (
 	"regexp"
@@ -7,32 +7,28 @@ import (
 type Platform struct {
 	Name     string
 	Patterns []*regexp.Regexp
-	Format   string
 }
 
-var YouTube = &Platform{
-	Name:   "youtube",
-	Format: "best[ext=mp4][acodec!=none][vcodec!=none][height<=720][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][height<=720][filesize_approx<49M]",
+var YouTube = new(Platform{
+	Name: "youtube",
 	Patterns: []*regexp.Regexp{
 		regexp.MustCompile(`^https?://(?:www\.)?youtube\.com/watch\?.*v=[\w-]+`),
 		regexp.MustCompile(`^https?://youtu\.be/[\w-]+`),
 		regexp.MustCompile(`^https?://(?:www\.)?youtube\.com/shorts/[\w-]+`),
 	},
-}
+})
 
-var TikTok = &Platform{
-	Name:   "tiktok",
-	Format: "\"best[ext=mp4][acodec!=none][vcodec!=none][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][filesize_approx<49M]",
+var TikTok = new(Platform{
+	Name: "tiktok",
 	Patterns: []*regexp.Regexp{
 		regexp.MustCompile(`^https?://(www\.)?tiktok\.com/@[\w\.-]+/video/\d+`),
 		regexp.MustCompile(`^https?://vt\.tiktok\.com/[\w-]+`),
 		regexp.MustCompile(`^https?://vm\.tiktok\.com/[\w-]+`),
 	},
-}
+})
 
-var Instagram = &Platform{
-	Name:   "instagram",
-	Format: "best[ext=mp4][acodec!=none][vcodec!=none][filesize<49M]/best[ext=mp4][acodec!=none][vcodec!=none][filesize_approx<49M]",
+var Instagram = new(Platform{
+	Name: "instagram",
 	Patterns: []*regexp.Regexp{
 		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/(?:reel|p)/[\w-]+/?`),
 		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/reels/[\w-]+/?`),
@@ -40,7 +36,7 @@ var Instagram = &Platform{
 		regexp.MustCompile(`^https?://(?:www\.)?instagr\.am/(?:reel|p)/[\w-]+/?`),
 		regexp.MustCompile(`^https?://(?:www\.)?instagram\.com/share/(?:reel|p|story)/[\w-]+/?`),
 	},
-}
+})
 
 var Platforms = []*Platform{
 	YouTube,

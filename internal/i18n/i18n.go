@@ -3,63 +3,49 @@ package i18n
 import (
 	"embed"
 	"encoding/json"
-	"path/filepath"
-	"strings"
+	"fmt"
+
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"golang.org/x/text/language"
 )
 
 //go:embed locales/*.json
 var localeFS embed.FS
 
-type I18n struct {
-	translations map[string]map[string]string
-	DefaultLang  string
+type Localizer = i18n.Localizer
+
+type Service struct {
+	bundle *i18n.Bundle
 }
 
-func New(defaultLang string) (*I18n, error) {
-	i18n := &I18n{
-		translations: map[string]map[string]string{},
-		DefaultLang:  defaultLang,
+func NewService() *Service {
+	bundle := i18n.NewBundle(language.Ukrainian)
+	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	return &Service{bundle: bundle}
+}
+
+func (s *Service) LoadTranslations() error {
+	for _, path := range []string{"locales/uk.json", "locales/en.json", "locales/pl.json"} {
+		if _, err := s.bundle.LoadMessageFileFS(localeFS, path); err != nil {
+			return fmt.Errorf("i18n: loading %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) FromLanguage(lang string) *Localizer {
+	return i18n.NewLocalizer(s.bundle, lang)
+}
+
+func T(l *Localizer, messageID string, data ...map[string]any) string {
+	cfg := &i18n.LocalizeConfig{MessageID: messageID}
+	if len(data) > 0 {
+		cfg.TemplateData = data[0]
 	}
 
-	entries, err := localeFS.ReadDir("locales")
+	msg, err := l.Localize(cfg)
 	if err != nil {
-		return nil, err
+		return messageID
 	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		data, err := localeFS.ReadFile("locales/" + entry.Name())
-		if err != nil {
-			return nil, err
-		}
-
-		var translations map[string]string
-		if err := json.Unmarshal(data, &translations); err != nil {
-			return nil, err
-		}
-
-		lang := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
-		i18n.translations[lang] = translations
-	}
-
-	return i18n, nil
-}
-
-func (tr *I18n) T(lang, key string) string {
-	if langTranslations, ok := tr.translations[lang]; ok {
-		if value, ok := langTranslations[key]; ok {
-			return value
-		}
-	}
-
-	if defaultTranslations, ok := tr.translations[tr.DefaultLang]; ok {
-		if value, ok := defaultTranslations[key]; ok {
-			return value
-		}
-	}
-
-	return key
+	return msg
 }

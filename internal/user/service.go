@@ -3,49 +3,36 @@ package user
 import (
 	"context"
 	"errors"
-	"log"
-
-	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
-	"gorm.io/gorm"
 )
 
 type Service struct {
-	repository LanguageRepository
-	i18n       *i18n.I18n
+	repository  Repository
+	defaultLang string
 }
 
 func NewService(
-	repository LanguageRepository,
-	i18n *i18n.I18n,
+	repository Repository,
+	defaultLang string,
 ) *Service {
-	return &Service{
-		repository: repository,
-		i18n:       i18n,
-	}
+	return new(Service{
+		repository:  repository,
+		defaultLang: defaultLang,
+	})
 }
 
-func (s *Service) GetLanguage(ctx context.Context, telegramID int64) string {
-	lang, err := s.repository.GetUserLanguage(ctx, telegramID)
+func (s *Service) GetLanguage(ctx context.Context, telegramID int64) (string, error) {
+	lang, err := s.repository.GetLanguage(ctx, telegramID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("Failed to get user language: %v", err)
+		if errors.Is(err, ErrUserNotFound) {
+			return s.defaultLang, nil
 		}
 
-		return s.i18nDefault()
+		return "", err
 	}
 
-	return lang
+	return lang, nil
 }
 
 func (s *Service) SetLanguage(ctx context.Context, telegramID int64, lang string) error {
-	return s.repository.SetUserLanguage(ctx, telegramID, lang)
-}
-
-func (s *Service) T(ctx context.Context, telegramID int64, key string) string {
-	lang := s.GetLanguage(ctx, telegramID)
-	return s.i18n.T(lang, key)
-}
-
-func (s *Service) i18nDefault() string {
-	return s.i18n.DefaultLang
+	return s.repository.SetLanguage(ctx, telegramID, lang)
 }

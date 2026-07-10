@@ -1,58 +1,39 @@
 package config
 
 import (
-	"log"
-	"os"
+	"time"
 
+	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 )
 
-type Mode string
+type Environment string
 
 const (
-	ModeWebhook Mode = "webhook"
-	ModePolling Mode = "polling"
+	EnvDev  Environment = "dev"
+	EnvProd Environment = "prod"
 )
 
-type Config struct {
-	Token         string
-	WebhookURL    string
-	WebhookSecret string
-	Mode          Mode
+func (e Environment) IsDev() bool { return e == EnvDev }
 
-	PostgresHost string
-	PostgresPort string
-	PostgresUser string
-	PostgresPass string
-	PostgresDb   string
+type Config struct {
+	Environment     Environment   `env:"ENVIRONMENT" envDefault:"dev"`
+	DefaultLang     string        `env:"DEFAULT_LANG" envDefault:"en"`
+	DownloadTimeout time.Duration `env:"DOWNLOAD_TIMEOUT" envDefault:"5m"`
+
+	TelegramToken string `env:"TELEGRAM_TOKEN,required"`
+	WebhookURL    string `env:"WEBHOOK_URL"`
+	WebhookSecret string `env:"WEBHOOK_SECRET"`
+	HttpAddress   string `env:"HTTP_ADDRESS" envDefault:":2000"`
+
+	PostgresHost string `env:"POSTGRES_HOST,required"`
+	PostgresPort string `env:"POSTGRES_PORT,required"`
+	PostgresUser string `env:"POSTGRES_USER,required"`
+	PostgresPass string `env:"POSTGRES_PASS,required"`
+	PostgresDb   string `env:"POSTGRES_DB,required"`
 }
 
-func Load() Config {
+func Load() (Config, error) {
 	_ = godotenv.Load()
-
-	mode := Mode(os.Getenv("BOT_MODE"))
-
-	if mode != ModeWebhook && mode != ModePolling {
-		log.Printf("Invalid BOT_MODE '%s', defaulting to 'polling'", mode)
-		mode = ModePolling
-	}
-
-	config := Config{
-		Token:         os.Getenv("BOT_TOKEN"),
-		WebhookURL:    os.Getenv("WEBHOOK_URL"),
-		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
-		Mode:          mode,
-
-		PostgresHost: os.Getenv("POSTGRES_HOST"),
-		PostgresPort: os.Getenv("POSTGRES_PORT"),
-		PostgresUser: os.Getenv("POSTGRES_USER"),
-		PostgresPass: os.Getenv("POSTGRES_PASSWORD"),
-		PostgresDb:   os.Getenv("POSTGRES_DB"),
-	}
-
-	if config.Token == "" {
-		log.Fatal("BOT_TOKEN is required")
-	}
-
-	return config
+	return env.ParseAs[Config]()
 }

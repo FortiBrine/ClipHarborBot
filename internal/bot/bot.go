@@ -3,194 +3,124 @@ package bot
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
-	"github.com/FortiBrine/ClipHarborBot/internal/downloader"
-	"github.com/FortiBrine/ClipHarborBot/internal/platform"
+	"github.com/FortiBrine/ClipHarborBot/internal/database"
+	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
+	"github.com/FortiBrine/ClipHarborBot/internal/video"
 	tgbot "github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
-
-	"github.com/FortiBrine/ClipHarborBot/internal/handler"
 )
 
-type ClipHarborBot struct {
-	bot       *tgbot.Bot
-	botConfig config.Config
+type Bot struct {
+	bot    *tgbot.Bot
+	logger *slog.Logger
 }
 
 func New(
-	cfg config.Config,
-	userMessagesService *user.Service,
-	downloaderUtil *downloader.Downloader,
-	formatSelector *downloader.FormatSelector,
-) (*ClipHarborBot, error) {
-
-	languageHandler := handler.NewLanguageHandler(userMessagesService)
-	startHandler := handler.NewStartHandler(userMessagesService)
-	defaultHandler := handler.NewDefaultHandler(userMessagesService)
-
-	tiktokHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.TikTok, "tiktok_help")
-	youtubeHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.YouTube, "youtube_help")
-	instagramHandler := downloader.NewVideoHandler(userMessagesService, downloaderUtil, formatSelector, platform.Instagram, "instagram_help")
-
-	options := []tgbot.Option{
-		tgbot.WithDefaultHandler(defaultHandler.Default),
+	ctx context.Context, cfg config.Config,
+	logger *slog.Logger,
+) (b *Bot, err error) {
+	db, err := database.NewPostgres(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("creating database: %w", err)
 	}
 
-	if cfg.Mode == config.ModeWebhook {
+	i18nService := i18n.NewService()
+	if err = i18nService.LoadTranslations(); err != nil {
+		return nil, fmt.Errorf("loading translations: %w", err)
+	}
+
+	userRepository := user.NewPostgresRepository(db)
+	if err = userRepository.Migrate(); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+	userService := user.NewService(userRepository, cfg.DefaultLang)
+
+	maxSize := int64(49 * 1024 * 1024)
+	fetcher := video.NewYTDLPFetcher()
+	downloader, err := video.NewYTDLPDownloader(
+		logger,
+		cfg.DownloadTimeout,
+		maxSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating video downloader: %w", err)
+	}
+	formatSelector := video.NewFormatSelector(maxSize)
+
+	options := []tgbot.Option{
+		tgbot.WithDefaultHandler(NewDefaultHandler(
+			logger,
+			userService,
+			i18nService,
+		)),
+	}
+
+	if cfg.WebhookSecret != "" {
 		options = append(options,
 			tgbot.WithWebhookSecretToken(cfg.WebhookSecret),
 		)
 	}
 
-	bot, err := tgbot.New(cfg.Token, options...)
+	bot, err := tgbot.New(cfg.TelegramToken, options...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create bot: %w", err)
+		return nil, fmt.Errorf("creating bot: %w", err)
 	}
 
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"tiktok",
-		tgbot.MatchTypeCommandStartOnly,
-		tiktokHandler.Handle,
+	RegisterRoutes(
+		logger, bot,
+		userService,
+		i18nService,
+		fetcher,
+		downloader,
+		formatSelector,
 	)
 
-	for _, pattern := range platform.TikTok.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			tiktokHandler.Handle,
-		)
-	}
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"youtube",
-		tgbot.MatchTypeCommandStartOnly,
-		youtubeHandler.Handle,
-	)
-
-	for _, pattern := range platform.YouTube.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			youtubeHandler.Handle,
-		)
-	}
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"instagram",
-		tgbot.MatchTypeCommandStartOnly,
-		instagramHandler.Handle,
-	)
-
-	for _, pattern := range platform.Instagram.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			instagramHandler.Handle,
-		)
-	}
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"start",
-		tgbot.MatchTypeCommandStartOnly,
-		startHandler.Handle,
-	)
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"lang",
-		tgbot.MatchTypeCommandStartOnly,
-		languageHandler.LanguageCommand,
-	)
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeCallbackQueryData,
-		"lang",
-		tgbot.MatchTypePrefix,
-		languageHandler.CallbackHandler,
-	)
-
-	return &ClipHarborBot{
-		bot:       bot,
-		botConfig: cfg,
-	}, nil
-}
-
-func (b *ClipHarborBot) Start(ctx context.Context) error {
-
-	switch b.botConfig.Mode {
-	case config.ModeWebhook:
-		log.Printf("Starting bot in webhook mode with URL: %s", b.botConfig.WebhookURL)
-
-		_, err := b.bot.SetWebhook(ctx, &tgbot.SetWebhookParams{
-			URL:         b.botConfig.WebhookURL,
-			SecretToken: b.botConfig.WebhookSecret,
-		})
-
-		if err != nil {
-			return fmt.Errorf("failed to set webhook: %w", err)
-		}
-
-	case config.ModePolling:
-		log.Printf("Starting bot in polling mode")
-
-		_, err := b.bot.DeleteWebhook(ctx, &tgbot.DeleteWebhookParams{
-			DropPendingUpdates: true,
-		})
-
-		if err != nil {
-			fmt.Printf("failed to delete webhook: %v", err)
-		}
-	default:
-		return fmt.Errorf("invalid bot mode: %s", b.botConfig.Mode)
-	}
-
-	_, err := b.bot.SetMyCommands(ctx, &tgbot.SetMyCommandsParams{
-		Scope: &models.BotCommandScopeDefault{},
-		Commands: []models.BotCommand{
-			{
-				Command:     "start",
-				Description: "Start the bot and get a welcome message",
-			},
-			{
-				Command:     "tiktok",
-				Description: "Download TikTok videos by providing a link",
-			},
-			{
-				Command:     "youtube",
-				Description: "Download YouTube videos by providing a link",
-			},
-			{
-				Command:     "instagram",
-				Description: "Download Instagram videos by providing a link",
-			},
-			{
-				Command:     "lang",
-				Description: "Change the bot's language",
-			},
-		},
+	b = new(Bot{
+		bot:    bot,
+		logger: logger,
 	})
 
-	if err != nil {
-		return fmt.Errorf("failed to set bot commands: %w", err)
-	}
+	return
+}
 
-	if b.botConfig.Mode == config.ModePolling {
-		b.bot.Start(ctx)
+func (b *Bot) Start(ctx context.Context, cfg config.Config) error {
+	if cfg.WebhookURL != "" && cfg.WebhookSecret != "" {
+		if _, err := b.bot.SetWebhook(ctx, new(tgbot.SetWebhookParams{
+			URL:         cfg.WebhookURL,
+			SecretToken: cfg.WebhookSecret,
+		})); err != nil {
+			return fmt.Errorf("setting webhook: %w", err)
+		}
+
+		mux := http.NewServeMux()
+
+		mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok"))
+		})
+		mux.Handle("/webhook", b.bot.WebhookHandler())
+
+		b.bot.StartWebhook(ctx)
+
+		go func(logger *slog.Logger) {
+			if err := http.ListenAndServe(cfg.HttpAddress, mux); err != nil {
+				logger.Error("error starting HTTP server", "error", err)
+			}
+		}(b.logger)
 		return nil
 	}
 
-	b.bot.StartWebhook(ctx)
-	return nil
-}
+	if _, err := b.bot.DeleteWebhook(ctx, new(tgbot.DeleteWebhookParams{
+		DropPendingUpdates: true,
+	})); err != nil {
+		return fmt.Errorf("deleting webhook: %w", err)
+	}
 
-func (b *ClipHarborBot) WebhookHandler() http.Handler {
-	return b.bot.WebhookHandler()
+	b.bot.Start(ctx)
+
+	return nil
 }

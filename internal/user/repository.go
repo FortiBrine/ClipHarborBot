@@ -2,45 +2,57 @@ package user
 
 import (
 	"context"
+	"errors"
 
-	"github.com/FortiBrine/ClipHarborBot/internal/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type LanguageRepository interface {
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
+
+type Repository interface {
 	Migrate() error
-	GetUserLanguage(context.Context, int64) (string, error)
-	SetUserLanguage(context.Context, int64, string) error
+	GetLanguage(context.Context, int64) (string, error)
+	SetLanguage(context.Context, int64, string) error
 }
 
-type PostgresLanguageRepository struct {
-	database *database.Database
+type PostgresRepository struct {
+	db *gorm.DB
 }
 
-func NewPostgresLanguageRepository(database *database.Database) LanguageRepository {
-	return &PostgresLanguageRepository{database: database}
+func NewPostgresRepository(db *gorm.DB) *PostgresRepository {
+	return new(PostgresRepository{db: db})
 }
 
-func (r *PostgresLanguageRepository) Migrate() error {
-	return r.database.GormDB.AutoMigrate(&User{})
+func (r *PostgresRepository) Migrate() error {
+	return r.db.AutoMigrate(new(User))
 }
 
-func (r *PostgresLanguageRepository) GetUserLanguage(ctx context.Context, telegramID int64) (string, error) {
-	userLanguage, err := gorm.G[User](r.database.GormDB).Where("id = ?", telegramID).First(ctx)
+func (r *PostgresRepository) GetLanguage(ctx context.Context, telegramID int64) (string, error) {
+	u, err := gorm.G[User](r.db).Where("id = ?", telegramID).First(ctx)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", ErrUserNotFound
+		}
+
 		return "", err
 	}
 
-	return userLanguage.Language, nil
+	return u.Language, nil
 }
 
-func (r *PostgresLanguageRepository) SetUserLanguage(ctx context.Context, telegramID int64, language string) error {
-	return gorm.G[User](r.database.GormDB, clause.OnConflict{
+func (r *PostgresRepository) SetLanguage(
+	ctx context.Context,
+	telegramID int64,
+	language string,
+) error {
+	return gorm.G[User](r.db, clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"language"}),
-	}).Create(ctx, &User{
+	}).Create(ctx, new(User{
 		ID:       telegramID,
 		Language: language,
-	})
+	}))
 }

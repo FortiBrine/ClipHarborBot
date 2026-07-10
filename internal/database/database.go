@@ -8,11 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Database struct {
-	GormDB *gorm.DB
-}
-
-func New(config config.Config) (*Database, error) {
+func NewPostgres(config config.Config) (*gorm.DB, error) {
 	db, err := gorm.Open(
 		postgres.Open(fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -22,14 +18,12 @@ func New(config config.Config) (*Database, error) {
 			config.PostgresPass,
 			config.PostgresDb,
 		)),
-		&gorm.Config{},
+		new(gorm.Config),
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("connecting to postgres: %w", err)
 	}
 
-	return &Database{
-		GormDB: db,
-	}, nil
+	return db, nil
 }
