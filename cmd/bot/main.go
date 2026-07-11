@@ -28,11 +28,11 @@ func main() {
 		l.Error("error creating bot", "error", err)
 		os.Exit(1)
 	}
-	defer func(b *bot.Bot) {
-		b.Close()
-	}(b)
+	defer func() {
+		b.Close(cfg)
+	}()
 
-	if err = b.Start(ctx, cfg); err != nil {
+	if err = b.Start(); err != nil {
 		l.Error("error starting bot", "error", err)
 	}
 }

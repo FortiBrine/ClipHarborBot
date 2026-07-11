@@ -5,21 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: clipharborbot
     restart: unless-stopped
-    environment:
-      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
-      WEBHOOK_URL: ${WEBHOOK_URL}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-
-      ENVIRONMENT: ${ENVIRONMENT:-dev}
-      DEFAULT_LANG: ${DEFAULT_LANG:-en}
-      DOWNLOAD_TIMEOUT: ${DOWNLOAD_TIMEOUT:-5m}
-      HTTP_ADDRESS: ${HTTP_ADDRESS:-:2000}
-
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASS: ${POSTGRES_PASSWORD}
+    env_file: .env
     healthcheck:
       test: ["CMD", "wget -q -O- http://localhost:2000/health || exit 1"]
       interval: 30s

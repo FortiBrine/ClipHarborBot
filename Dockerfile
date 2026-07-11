@@ -1,6 +1,10 @@
+FROM docker.io/sqlc/sqlc:1.31.1 AS sqlc
+
 FROM docker.io/library/golang:1.26.4-alpine3.24 AS builder
 
 WORKDIR /build
+
+COPY --from=sqlc /workspace/sqlc /usr/local/bin/sqlc
 
 COPY go.mod go.sum ./
 
@@ -9,9 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    go tool sqlc generate
+RUN sqlc generate
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \

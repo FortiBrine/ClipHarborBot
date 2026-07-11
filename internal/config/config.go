@@ -27,11 +27,11 @@ type Config struct {
 	WebhookSecret string `env:"WEBHOOK_SECRET"`
 	HttpAddress   string `env:"HTTP_ADDRESS" envDefault:":2000"`
 
-	PostgresHost string `env:"POSTGRES_HOST,required"`
-	PostgresPort string `env:"POSTGRES_PORT,required"`
-	PostgresUser string `env:"POSTGRES_USER,required"`
-	PostgresPass string `env:"POSTGRES_PASS,required"`
-	PostgresDb   string `env:"POSTGRES_DB,required"`
+	PostgresHost     string `env:"POSTGRES_HOST,required"`
+	PostgresPort     uint16 `env:"POSTGRES_PORT,required"`
+	PostgresUser     string `env:"POSTGRES_USER,required"`
+	PostgresPassword string `env:"POSTGRES_PASSWORD,required"`
+	PostgresDb       string `env:"POSTGRES_DB,required"`
 }
 
 func Load() (Config, error) {

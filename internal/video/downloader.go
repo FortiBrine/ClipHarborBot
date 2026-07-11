@@ -79,13 +79,13 @@ func (d *YTDLPDownloader) DownloadVideo(
 		return "", fmt.Errorf("closing temp file: %w", err)
 	}
 
-	defer func(logger *slog.Logger) {
+	defer func() {
 		if err != nil {
 			if rmErr := os.Remove(output); rmErr != nil && !os.IsNotExist(rmErr) {
-				logger.Error("removing incomplete download", "file", output, "error", rmErr)
+				d.logger.Error("removing incomplete download", "file", output, "error", rmErr)
 			}
 		}
-	}(d.logger)
+	}()
 
 	ctx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()

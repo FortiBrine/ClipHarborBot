@@ -2,25 +2,25 @@ package bot
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/FortiBrine/ClipHarborBot/internal/store"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	"github.com/FortiBrine/ClipHarborBot/internal/video"
-	tgbot "github.com/go-telegram/bot"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
 )
 
 type Bot struct {
-	logger *slog.Logger
-	bot    *tgbot.Bot
-	pool   *pgxpool.Pool
+	logger    *slog.Logger
+	pool      *pgxpool.Pool
+	bh        *th.BotHandler
+	transport *transport
 }
 
 func New(
@@ -36,11 +36,11 @@ func New(
 	if err = store.Migrate(ctx, db); err != nil {
 		return nil, fmt.Errorf("migrating store: %w", err)
 	}
-	defer func(p *pgxpool.Pool) {
+	defer func() {
 		if err != nil {
-			p.Close()
+			pool.Close()
 		}
-	}(pool)
+	}()
 
 	i18nService := i18n.NewService()
 	if err = i18nService.LoadTranslations(); err != nil {
@@ -62,27 +62,32 @@ func New(
 	}
 	formatSelector := video.NewFormatSelector(maxSize)
 
-	options := []tgbot.Option{
-		tgbot.WithDefaultHandler(NewDefaultHandler(
-			logger,
-			userService,
-			i18nService,
-		)),
-	}
-
-	if cfg.WebhookSecret != "" {
-		options = append(options,
-			tgbot.WithWebhookSecretToken(cfg.WebhookSecret),
-		)
-	}
-
-	bot, err := tgbot.New(cfg.TelegramToken, options...)
+	telegoBot, err := telego.NewBot(cfg.TelegramToken)
 	if err != nil {
 		return nil, fmt.Errorf("creating bot: %w", err)
 	}
 
+	tr, updates, err := newTransport(ctx, cfg, logger, telegoBot)
+	if err != nil {
+		return nil, fmt.Errorf("setting up transport: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tr.Stop(ctx)
+		}
+	}()
+
+	bh, err := th.NewBotHandler(telegoBot, updates)
+	if err != nil {
+		return nil, fmt.Errorf("creating bot handler: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			bh.Stop()
+		}
+	}()
 	RegisterRoutes(
-		logger, bot,
+		bh,
 		userService,
 		i18nService,
 		fetcher,
@@ -91,65 +96,29 @@ func New(
 	)
 
 	b = new(Bot{
-		logger: logger,
-		bot:    bot,
-		pool:   pool,
+		logger:    logger,
+		pool:      pool,
+		bh:        bh,
+		transport: tr,
 	})
 
 	return
 }
 
-func (b *Bot) Start(ctx context.Context, cfg config.Config) error {
-	if cfg.WebhookURL != "" && cfg.WebhookSecret != "" {
-		if _, err := b.bot.SetWebhook(ctx, new(tgbot.SetWebhookParams{
-			URL:         cfg.WebhookURL,
-			SecretToken: cfg.WebhookSecret,
-		})); err != nil {
-			return fmt.Errorf("setting webhook: %w", err)
-		}
-
-		mux := http.NewServeMux()
-
-		mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("ok"))
-		})
-		mux.Handle("/webhook", b.bot.WebhookHandler())
-
-		srv := new(http.Server{
-			Addr:    cfg.HttpAddress,
-			Handler: mux,
-		})
-
-		go func(logger *slog.Logger) {
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("error starting HTTP server", "error", err)
-			}
-		}(b.logger)
-
-		b.bot.StartWebhook(ctx)
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HttpShutdownTimeout)
-		defer cancel()
-
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			b.logger.Error("error shutting down HTTP server", "error", err)
-		}
-
-		return nil
-	}
-
-	if _, err := b.bot.DeleteWebhook(ctx, new(tgbot.DeleteWebhookParams{
-		DropPendingUpdates: true,
-	})); err != nil {
-		return fmt.Errorf("deleting webhook: %w", err)
-	}
-
-	b.bot.Start(ctx)
-
+func (b *Bot) Start() error {
+	b.bh.Start()
+	b.transport.Start()
 	return nil
 }
 
-func (b *Bot) Close() {
+func (b *Bot) Close(cfg config.Config) {
 	b.pool.Close()
+	b.bh.Stop()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HttpShutdownTimeout)
+	defer cancel()
+
+	if err := b.transport.Stop(shutdownCtx); err != nil {
+		b.logger.Error("error shutting down HTTP server", "error", err)
+	}
 }

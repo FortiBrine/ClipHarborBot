@@ -1,16 +1,15 @@
 package video
 
 import (
-	"log/slog"
+	"fmt"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
-	tgbot "github.com/go-telegram/bot"
+	th "github.com/mymmrac/telego/telegohandler"
 )
 
 func RegisterRoutes(
-	logger *slog.Logger,
-	bot *tgbot.Bot,
+	bh *th.BotHandler,
 	userService *user.Service,
 	i18nService *i18n.Service,
 	fetcher MetadataFetcher,
@@ -18,60 +17,19 @@ func RegisterRoutes(
 	formatSelector *FormatSelector,
 ) {
 	handler := NewHandler(
-		logger,
 		userService,
 		i18nService,
 		fetcher,
 		downloader,
 		formatSelector,
 	)
-	tiktokHandler := handler.Handle(TikTok, "tiktok_help")
-	youtubeHandler := handler.Handle(YouTube, "youtube_help")
-	instagramHandler := handler.Handle(Instagram, "instagram_help")
 
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"tiktok",
-		tgbot.MatchTypeCommandStartOnly,
-		tiktokHandler,
-	)
-
-	for _, pattern := range TikTok.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			tiktokHandler,
-		)
-	}
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"youtube",
-		tgbot.MatchTypeCommandStartOnly,
-		youtubeHandler,
-	)
-
-	for _, pattern := range YouTube.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			youtubeHandler,
-		)
-	}
-
-	bot.RegisterHandler(
-		tgbot.HandlerTypeMessageText,
-		"instagram",
-		tgbot.MatchTypeCommandStartOnly,
-		instagramHandler,
-	)
-
-	for _, pattern := range Instagram.Patterns {
-		bot.RegisterHandlerRegexp(
-			tgbot.HandlerTypeMessageText,
-			pattern,
-			instagramHandler,
-		)
+	for _, platform := range Platforms {
+		platformHandler := handler.Handle(platform, fmt.Sprintf("%s_help", platform.Name))
+		bh.HandleMessage(platformHandler, th.CommandPrefix(platform.Name))
+		for _, pattern := range platform.Patterns {
+			bh.HandleMessage(platformHandler, th.TextMatches(pattern))
+		}
 	}
 
 }

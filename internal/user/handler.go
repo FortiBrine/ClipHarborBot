@@ -1,85 +1,69 @@
 package user
 
 import (
-	"context"
-	"log"
-	"log/slog"
+	"fmt"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
-	tgbot "github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
+	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 type Handler struct {
-	logger      *slog.Logger
 	service     *Service
 	i18nService *i18n.Service
 }
 
-func NewHandler(logger *slog.Logger, service *Service, i18nService *i18n.Service) *Handler {
+func NewHandler(service *Service, i18nService *i18n.Service) *Handler {
 	return new(Handler{
-		logger:      logger,
 		service:     service,
 		i18nService: i18nService,
 	})
 }
 
-func (h *Handler) SetLanguage(ctx context.Context, b *tgbot.Bot, update *models.Update) {
-	if update.Message == nil {
-		return
-	}
-	lang, err := h.service.GetLanguage(ctx, update.Message.From.ID)
+func (h *Handler) SetLanguage(ctx *th.Context, message telego.Message) error {
+	userID := message.From.ID
+	lang, err := h.service.GetLanguage(ctx, userID)
 	if err != nil {
-		h.logger.Error("getting user language", "error", err)
-		return
+		return fmt.Errorf("getting user language: %w", err)
 	}
 
 	localizer := h.i18nService.FromLanguage(lang)
 
-	keyboardButtons := new(models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{
-				{Text: "Українська", CallbackData: "lang_ukrainian_button"},
-				{Text: "English", CallbackData: "lang_english_button"},
-			}, {
-				{Text: "Polski", CallbackData: "lang_polish_button"},
-			},
-		},
-	})
-
-	if _, err = b.SendMessage(ctx, new(tgbot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
-		Text:        i18n.T(localizer, "change_language_message"),
-		ReplyMarkup: keyboardButtons,
-	})); err != nil {
-		h.logger.Error("sending user language message", "error", err)
+	keyboard := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("Українська").WithCallbackData("lang_ukrainian_button"),
+			tu.InlineKeyboardButton("English").WithCallbackData("lang_english_button"),
+		),
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("Polski").WithCallbackData("lang_polish_button"),
+		),
+	)
+	if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
+		tu.ID(message.Chat.ID),
+		i18n.T(localizer, "change_language_message"),
+	).WithReplyMarkup(keyboard)); err != nil {
+		return fmt.Errorf("sending change_language_message: %w", err)
 	}
+
+	return nil
 }
 
-func (h *Handler) CallbackHandler(ctx context.Context, b *tgbot.Bot, update *models.Update) {
-	callbackQuery := update.CallbackQuery
-	if callbackQuery == nil {
-		return
-	}
-	lang, err := h.service.GetLanguage(ctx, update.Message.From.ID)
+func (h *Handler) CallbackHandler(ctx *th.Context, query telego.CallbackQuery) error {
+	userID := query.From.ID
+	lang, err := h.service.GetLanguage(ctx, userID)
 	if err != nil {
-		h.logger.Error("getting user language", "error", err)
-		return
+		return fmt.Errorf("getting user language: %w", err)
 	}
 
 	localizer := h.i18nService.FromLanguage(lang)
 
-	if _, err := b.AnswerCallbackQuery(ctx, new(tgbot.AnswerCallbackQueryParams{
-		CallbackQueryID: callbackQuery.ID,
-		ShowAlert:       false,
-	})); err != nil {
-		h.logger.Error("answering callback query", "error", err)
-		return
+	if err = ctx.Bot().AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID)); err != nil {
+		return fmt.Errorf("answering callback query: %w", err)
 	}
 
-	data := update.CallbackQuery.Data
 	var language string
-	switch data {
+	switch query.Data {
 	case "lang_ukrainian_button":
 		language = "ua"
 	case "lang_english_button":
@@ -87,26 +71,25 @@ func (h *Handler) CallbackHandler(ctx context.Context, b *tgbot.Bot, update *mod
 	case "lang_polish_button":
 		language = "pl"
 	default:
-		log.Printf("Unknown callback data: %s", data)
-		return
+		return fmt.Errorf("unknown callback data: %s", query.Data)
 	}
 
-	if err = h.service.SetLanguage(ctx, callbackQuery.From.ID, language); err != nil {
-		h.logger.Error("setting language", "error", err)
-		return
+	if err = h.service.SetLanguage(ctx, userID, language); err != nil {
+		return fmt.Errorf("setting language: %w", err)
 	}
 
-	if _, err := b.DeleteMessage(ctx, new(tgbot.DeleteMessageParams{
-		ChatID:    callbackQuery.Message.Message.Chat.ID,
-		MessageID: callbackQuery.Message.Message.ID,
-	})); err != nil {
-		h.logger.Error("deleting message", "error", err)
+	if err = ctx.Bot().DeleteMessage(ctx, tu.Delete(
+		query.Message.GetChat().ChatID(),
+		query.Message.GetMessageID(),
+	)); err != nil {
+		return fmt.Errorf("deleting message: %w", err)
 	}
 
-	if _, err := b.SendMessage(ctx, new(tgbot.SendMessageParams{
-		ChatID: callbackQuery.Message.Message.Chat.ID,
-		Text:   i18n.T(localizer, "selected_language_message"),
-	})); err != nil {
-		h.logger.Error("sending user language message", "error", err)
+	if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
+		query.Message.GetChat().ChatID(),
+		i18n.T(localizer, "selected_language_message"),
+	)); err != nil {
+		return fmt.Errorf("sending user language message: %w", err)
 	}
+	return nil
 }

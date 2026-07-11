@@ -4,19 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	"github.com/dustin/go-humanize"
-	tgbot "github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
+	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 type Handler struct {
-	logger         *slog.Logger
 	userService    *user.Service
 	i18nService    *i18n.Service
 	fetcher        MetadataFetcher
@@ -25,7 +24,6 @@ type Handler struct {
 }
 
 func NewHandler(
-	logger *slog.Logger,
 	userService *user.Service,
 	i18nService *i18n.Service,
 	fetcher MetadataFetcher,
@@ -33,7 +31,6 @@ func NewHandler(
 	formatSelector *FormatSelector,
 ) *Handler {
 	return new(Handler{
-		logger:         logger,
 		userService:    userService,
 		i18nService:    i18nService,
 		fetcher:        fetcher,
@@ -42,24 +39,21 @@ func NewHandler(
 	})
 }
 
-func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
+func (h *Handler) Handle(platform *Platform, helpKey string) th.MessageHandler {
 	return func(
-		ctx context.Context,
-		bot *tgbot.Bot,
-		update *models.Update,
-	) {
-		if update.Message == nil {
-			return
-		}
-		lang, err := h.userService.GetLanguage(ctx, update.Message.From.ID)
+		ctx *th.Context,
+		message telego.Message,
+	) error {
+		userID := message.From.ID
+		chatID := message.Chat.ChatID()
+		lang, err := h.userService.GetLanguage(ctx, userID)
 		if err != nil {
-			h.logger.Error("getting user language", "error", err)
-			return
+			return fmt.Errorf("getting user language: %w", err)
 		}
 
 		localizer := h.i18nService.FromLanguage(lang)
 
-		text := strings.TrimSpace(update.Message.Text)
+		text := strings.TrimSpace(message.Text)
 		parts := strings.Fields(text)
 
 		var url string
@@ -70,44 +64,41 @@ func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
 		}
 
 		if !platform.IsValidURL(url) {
-			if _, err = bot.SendMessage(ctx, new(tgbot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text:   i18n.T(localizer, "invalid_video_url"),
-			})); err != nil {
-				h.logger.Error("sending message to user", "error", err)
+			if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
+				chatID,
+				i18n.T(localizer, "invalid_video_url"),
+			)); err != nil {
+				return fmt.Errorf("sending message to user: %w", err)
 			}
 
-			return
+			return nil
 		}
 
 		format, err := h.formatSelector.FetchBest(ctx, h.fetcher, url)
 		if err != nil {
-			h.logger.Error("fetching best format", "error", err)
-			h.sendError(ctx, bot, update, localizer, "video_format_error")
-			return
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_format_error")
+			return fmt.Errorf("fetching best format: %w", err)
 		}
 
 		if format.Filesize <= 0 {
-			return
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_format_error")
+			return fmt.Errorf("format not available")
 		}
 
-		if _, err = bot.SendMessage(ctx, new(tgbot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text: fmt.Sprintf(
-				i18n.T(localizer, "video_expected_size"),
-				humanize.IBytes(uint64(format.Filesize)),
-			),
-		})); err != nil {
-			h.logger.Error("sending message to user", "error", err)
+		if _, err = ctx.Bot().SendMessage(ctx, tu.Messagef(
+			chatID,
+			i18n.T(localizer, "video_expected_size"),
+			humanize.IBytes(uint64(format.Filesize)),
+		)); err != nil {
+			return fmt.Errorf("sending message to user: %w", err)
 		}
 
-		statusMsg, err := bot.SendMessage(ctx, new(tgbot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   i18n.T(localizer, "video_downloading"),
-		}))
-
+		statusMsg, err := ctx.Bot().SendMessage(ctx, tu.Message(
+			chatID,
+			i18n.T(localizer, "video_downloading"),
+		))
 		if err != nil {
-			h.logger.Error("sending message to user", "error", err)
+			return fmt.Errorf("sending message to user: %w", err)
 		}
 
 		filePath, err := h.downloader.DownloadVideo(ctx, DownloadOptions{
@@ -116,47 +107,45 @@ func (h *Handler) Handle(platform *Platform, helpKey string) tgbot.HandlerFunc {
 			Prefix: platform.Name,
 		})
 		if err != nil {
-			h.logger.Error("downloading video", "error", err)
-			h.handleDownloadError(ctx, bot, update, localizer, err)
-			return
+			h.handleDownloadError(ctx, ctx.Bot(), chatID, localizer, err)
+			return fmt.Errorf("downloading video: %w", err)
 		}
 		defer h.downloader.CleanupFile(filePath)
 
-		if statusMsg != nil {
-			if _, err = bot.EditMessageText(ctx, new(tgbot.EditMessageTextParams{
-				ChatID:    update.Message.Chat.ID,
-				MessageID: statusMsg.ID,
-				Text:      i18n.T(localizer, "video_uploading"),
-			})); err != nil {
-				h.logger.Error("editing message to user", "error", err)
-			}
+		if _, err = ctx.Bot().EditMessageText(ctx, tu.EditMessageText(
+			chatID,
+			statusMsg.MessageID,
+			i18n.T(localizer, "video_uploading"),
+		)); err != nil {
+			return fmt.Errorf("editing message to user: %w", err)
 		}
 
 		file, err := os.Open(filePath)
 		if err != nil {
-			h.logger.Error("opening file", "error", err)
-			h.sendError(ctx, bot, update, localizer, "video_download_error")
-			return
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_download_error")
+			return fmt.Errorf("opening file: %w", err)
 		}
 		defer file.Close()
 
-		if _, err = bot.SendVideo(ctx, new(tgbot.SendVideoParams{
-			ChatID: update.Message.Chat.ID,
-			Video:  new(models.InputFileUpload{Filename: filePath, Data: file}),
-		})); err != nil {
-			h.logger.Error("sending video", "error", err)
-			h.sendError(ctx, bot, update, localizer, "video_upload_error")
+		if _, err = ctx.Bot().SendVideo(ctx, tu.Video(
+			chatID,
+			tu.File(file),
+		)); err != nil {
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_upload_error")
+			return fmt.Errorf("sending video to user: %w", err)
 		}
+
+		return nil
 	}
 }
 
 func (h *Handler) handleDownloadError(
 	ctx context.Context,
-	b *tgbot.Bot,
-	update *models.Update,
+	b *telego.Bot,
+	chatID telego.ChatID,
 	localizer *i18n.Localizer,
 	err error,
-) {
+) error {
 	msg := "video_download_error"
 
 	switch {
@@ -166,20 +155,24 @@ func (h *Handler) handleDownloadError(
 		msg = "video_format_error"
 	}
 
-	h.sendError(ctx, b, update, localizer, msg)
+	if sendingErr := h.sendError(ctx, b, chatID, localizer, msg); sendingErr != nil {
+		return fmt.Errorf("sending error: %w", sendingErr)
+	}
+	return nil
 }
 
 func (h *Handler) sendError(
 	ctx context.Context,
-	bot *tgbot.Bot,
-	update *models.Update,
+	bot *telego.Bot,
+	chatID telego.ChatID,
 	localizer *i18n.Localizer,
 	key string,
-) {
-	if _, err := bot.SendMessage(ctx, new(tgbot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   i18n.T(localizer, key),
-	})); err != nil {
-		h.logger.Error("sending error message to user", "error", err)
+) error {
+	if _, err := bot.SendMessage(ctx, tu.Message(
+		chatID,
+		i18n.T(localizer, key),
+	)); err != nil {
+		return fmt.Errorf("sending message to user: %w", err)
 	}
+	return nil
 }

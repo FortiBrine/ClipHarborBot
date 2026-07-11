@@ -1,33 +1,34 @@
 package bot
 
 import (
-	"context"
-	"log/slog"
+	"fmt"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
-	tgbot "github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
+	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 func NewDefaultHandler(
-	logger *slog.Logger,
 	userService *user.Service,
 	i18nService *i18n.Service,
-) tgbot.HandlerFunc {
-	return func(ctx context.Context, bot *tgbot.Bot, update *models.Update) {
-		lang, err := userService.GetLanguage(ctx, update.Message.From.ID)
+) th.MessageHandler {
+	return func(ctx *th.Context, message telego.Message) error {
+		userID := message.From.ID
+		lang, err := userService.GetLanguage(ctx, userID)
 		if err != nil {
-			logger.Error("getting user language", "error", err)
-			return
+			return fmt.Errorf("getting user language: %w", err)
 		}
 
 		localizer := i18nService.FromLanguage(lang)
-		if _, err = bot.SendMessage(ctx, new(tgbot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   i18n.T(localizer, "unknown_command"),
-		})); err != nil {
-			logger.Error("sending unknown command message", "error", err)
+		if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
+			message.Chat.ChatID(),
+			i18n.T(localizer, "unknown_command"),
+		)); err != nil {
+			return fmt.Errorf("sending unknown_command: %w", err)
 		}
+
+		return nil
 	}
 }
