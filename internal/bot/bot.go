@@ -7,9 +7,11 @@ import (
 
 	"github.com/FortiBrine/ClipHarborBot/internal/config"
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
+	"github.com/FortiBrine/ClipHarborBot/internal/middleware"
 	"github.com/FortiBrine/ClipHarborBot/internal/store"
 	"github.com/FortiBrine/ClipHarborBot/internal/user"
 	"github.com/FortiBrine/ClipHarborBot/internal/video"
+	"github.com/dustin/go-humanize"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/mymmrac/telego"
@@ -50,7 +52,7 @@ func New(
 	userRepository := user.NewPostgresRepository(pool)
 	userService := user.NewService(userRepository, cfg.DefaultLang)
 
-	maxSize := int64(49 * 1024 * 1024)
+	maxSize := int64(49 * humanize.MiByte)
 	fetcher := video.NewYTDLPFetcher()
 	downloader, err := video.NewYTDLPDownloader(
 		logger,
@@ -77,7 +79,9 @@ func New(
 		}
 	}()
 
-	bh, err := th.NewBotHandler(telegoBot, updates)
+	bh, err := th.NewBotHandler(telegoBot, updates, th.WithErrorHandler(
+		middleware.NewCustomErrorHandler(logger),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("creating bot handler: %w", err)
 	}
@@ -106,19 +110,21 @@ func New(
 }
 
 func (b *Bot) Start() error {
-	b.bh.Start()
+	if err := b.bh.Start(); err != nil {
+		return fmt.Errorf("starting bot handler: %w", err)
+	}
 	b.transport.Start()
 	return nil
 }
 
-func (b *Bot) Close(cfg config.Config) {
+func (b *Bot) Close(ctx context.Context, cfg config.Config) error {
 	b.pool.Close()
-	b.bh.Stop()
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HttpShutdownTimeout)
-	defer cancel()
-
-	if err := b.transport.Stop(shutdownCtx); err != nil {
-		b.logger.Error("error shutting down HTTP server", "error", err)
+	if err := b.bh.StopWithContext(ctx); err != nil {
+		return fmt.Errorf("stopping bot handler: %w", err)
 	}
+
+	if err := b.transport.Stop(ctx); err != nil {
+		return fmt.Errorf("stopping transport: %w", err)
+	}
+	return nil
 }

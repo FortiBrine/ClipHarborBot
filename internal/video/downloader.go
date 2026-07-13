@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	gocmd "github.com/go-cmd/cmd"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -95,31 +96,48 @@ func (d *YTDLPDownloader) DownloadVideo(
 		"--no-warnings",
 		"--no-progress",
 		"--restrict-filenames",
+		"--ignore-config",
+		"--no-cache-dir",
+		"--retries", "3",
+		"--fragment-retries", "3",
+		"--limit-rate", "10M",
 		"-f", opts.Format,
 		"--merge-output-format", "mp4",
 		"-o", output,
 		"--max-filesize", "49M",
 		"--socket-timeout", "30",
+		"--",
 		opts.URL,
 	}
 
-	cmd := exec.CommandContext(ctx, "yt-dlp", args...)
-
-	cmd.Env = []string{
+	c := gocmd.NewCmd("yt-dlp", args...)
+	c.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
 		"TMPDIR=" + os.Getenv("TMPDIR"),
 		"LANG=" + os.Getenv("LANG"),
 	}
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		outStr := string(out)
+	statusChan := c.Start()
+	var status gocmd.Status
+	select {
+	case status = <-statusChan:
+	case <-ctx.Done():
+		c.Stop()
+		status = <-statusChan
+	}
+
+	if status.Error != nil {
+		return "", fmt.Errorf("downloading video: %w", status.Error)
+	}
+
+	if status.Exit != 0 {
+		outStr := strings.Join(status.Stdout, "\n") + strings.Join(status.Stderr, "\n")
 		if strings.Contains(outStr, "Requested format is not available") {
 			return "", ErrInvalidFormat
 		}
 
-		return "", fmt.Errorf("downloading video: %w (%s)", err, string(out))
+		return "", fmt.Errorf("downloading video: yt-dlp exited with code %d (%s)", status.Exit, outStr)
 	}
 
 	info, err := os.Stat(output)

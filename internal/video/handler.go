@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
@@ -21,6 +22,7 @@ type Handler struct {
 	fetcher        MetadataFetcher
 	downloader     Downloader
 	formatSelector *FormatSelector
+	limiter        *RateLimiter
 }
 
 func NewHandler(
@@ -29,6 +31,7 @@ func NewHandler(
 	fetcher MetadataFetcher,
 	downloader Downloader,
 	formatSelector *FormatSelector,
+	limiter *RateLimiter,
 ) *Handler {
 	return new(Handler{
 		userService:    userService,
@@ -36,10 +39,11 @@ func NewHandler(
 		fetcher:        fetcher,
 		downloader:     downloader,
 		formatSelector: formatSelector,
+		limiter:        limiter,
 	})
 }
 
-func (h *Handler) Handle(platform *Platform, helpKey string) th.MessageHandler {
+func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageHandler {
 	return func(
 		ctx *th.Context,
 		message telego.Message,
@@ -53,15 +57,7 @@ func (h *Handler) Handle(platform *Platform, helpKey string) th.MessageHandler {
 
 		localizer := h.i18nService.FromLanguage(lang)
 
-		text := strings.TrimSpace(message.Text)
-		parts := strings.Fields(text)
-
-		var url string
-		if len(parts) == 1 {
-			url = parts[0]
-		} else {
-			url = parts[1]
-		}
+		url := pattern.FindString(strings.TrimSpace(message.Text))
 
 		if !platform.IsValidURL(url) {
 			if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
@@ -74,10 +70,21 @@ func (h *Handler) Handle(platform *Platform, helpKey string) th.MessageHandler {
 			return nil
 		}
 
+		if !h.limiter.Allow(userID) {
+			if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
+				chatID,
+				i18n.T(localizer, "rate_limited"),
+			)); err != nil {
+				return fmt.Errorf("sending message to user: %w", err)
+			}
+
+			return nil
+		}
+
 		format, err := h.formatSelector.FetchBest(ctx, h.fetcher, url)
 		if err != nil {
 			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_format_error")
-			return fmt.Errorf("fetching best format: %w", err)
+			return fmt.Errorf("fetching best format for %s (%s): %w", platform.Name, url, err)
 		}
 
 		if format.Filesize <= 0 {
@@ -108,7 +115,7 @@ func (h *Handler) Handle(platform *Platform, helpKey string) th.MessageHandler {
 		})
 		if err != nil {
 			h.handleDownloadError(ctx, ctx.Bot(), chatID, localizer, err)
-			return fmt.Errorf("downloading video: %w", err)
+			return fmt.Errorf("downloading video for %s (%s): %w", platform.Name, url, err)
 		}
 		defer h.downloader.CleanupFile(filePath)
 

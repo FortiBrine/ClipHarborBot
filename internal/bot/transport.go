@@ -76,6 +76,8 @@ func (t *transport) Stop(ctx context.Context) error {
 	if t.server == nil {
 		return nil
 	}
-
-	return t.server.Shutdown(ctx)
+	if err := t.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutting down HTTP server: %w", err)
+	}
+	return nil
 }
