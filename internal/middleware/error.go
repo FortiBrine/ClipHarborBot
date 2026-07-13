@@ -17,11 +17,22 @@ func NewCustomErrorHandler(logger *slog.Logger) th.ErrorHandler {
 			return
 		}
 
-		logger.Error("error handling update",
-			"chat_id", update.Message.Chat.ID,
-			"from_id", update.Message.From.ID,
-			"message_id", update.Message.MessageID,
-			"error", err,
-		)
+		attrs := []any{"update_id", update.UpdateID, "error", err}
+
+		switch {
+		case update.Message != nil:
+			attrs = append(attrs,
+				"chat_id", update.Message.Chat.ID,
+				"from_id", update.Message.From.ID,
+				"message_id", update.Message.MessageID,
+			)
+		case update.CallbackQuery != nil:
+			attrs = append(attrs, "from_id", update.CallbackQuery.From.ID)
+			if update.CallbackQuery.Message != nil {
+				attrs = append(attrs, "chat_id", update.CallbackQuery.Message.GetChat().ID)
+			}
+		}
+
+		logger.Error("error handling update", attrs...)
 	}
 }

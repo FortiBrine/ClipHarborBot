@@ -31,12 +31,12 @@ func main() {
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
-		if err = b.Close(shutdownCtx, cfg); err != nil {
+		if err = b.Close(shutdownCtx); err != nil {
 			l.Error("error closing bot", "error", err)
 		}
 	}()
 
-	if err = b.Start(); err != nil {
+	if err = b.Start(ctx); err != nil {
 		l.Error("error starting bot", "error", err)
 	}
 }

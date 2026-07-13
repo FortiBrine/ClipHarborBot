@@ -1,17 +1,60 @@
 {
-  "unknown_command": "❌ Unknown command",
-  "start_command": "Hi, I'm ClipHarborBot. Send me a TikTok, YouTube, or Instagram link and I'll download the video for you.",
-  "change_language_message": "🌐 Choose your language:",
-  "selected_language_message": "✅ Language updated.",
-  "video_expected_size": "📦 Expected video size: %s",
-  "video_downloading": "⏳ Downloading video...",
-  "video_uploading": "⬆️ Uploading video...",
-  "invalid_video_url": "❌ Invalid URL. Please send a valid link.",
-  "video_download_error": "❌ Error downloading video. Please try again later.",
-  "video_upload_error": "❌ Error uploading video. Please try again later.",
-  "video_size_error": "❌ Video is too large (over 50MB). Telegram does not support such large files.",
-  "video_format_error": "❌ Unsupported video format. Try a different format or a different link.",
-  "video_download_success": "✅ Video downloaded.",
-  "rate_limited": "⏳ Too many requests. Please wait a few seconds and try again."
+  "bot": {
+    "unknown_command": {
+      "description": "Sent when a user sends a command the bot doesn't recognize",
+      "other": "❌ Unknown command"
+    },
+    "start_command": {
+      "description": "Sent in reply to /start",
+      "other": "Hi, I'm ClipHarborBot. Send me a TikTok, YouTube, or Instagram link and I'll download the video for you."
+    }
+  },
+  "user": {
+    "change_language_message": {
+      "description": "Prompt shown together with the /lang language-picker keyboard",
+      "other": "🌐 Choose your language:"
+    },
+    "selected_language_message": {
+      "description": "Confirmation sent after a user picks a language from the keyboard",
+      "other": "✅ Language updated."
+    }
+  },
+  "video": {
+    "expected_size": {
+      "description": "Shows the estimated download size before the download starts; {{.Size}} is a human-readable byte size, e.g. \"12 MiB\"",
+      "other": "📦 Expected video size: {{.Size}}"
+    },
+    "downloading": {
+      "description": "Status update shown while yt-dlp is downloading the video",
+      "other": "⏳ Downloading video..."
+    },
+    "uploading": {
+      "description": "Status update shown while the bot uploads the downloaded file to Telegram",
+      "other": "⬆️ Uploading video..."
+    },
+    "invalid_url": {
+      "description": "Sent when the message text isn't a valid URL for the matched platform",
+      "other": "❌ Invalid URL. Please send a valid link."
+    },
+    "download_error": {
+      "description": "Generic fallback error shown when downloading the video fails for an unmapped reason",
+      "other": "❌ Error downloading video. Please try again later."
+    },
+    "upload_error": {
+      "description": "Sent when uploading the downloaded video to Telegram fails",
+      "other": "❌ Error uploading video. Please try again later."
+    },
+    "size_error": {
+      "description": "Sent when the video exceeds Telegram's upload size limit",
+      "other": "❌ Video is too large. Telegram only allows files up to 50MB."
+    },
+    "format_error": {
+      "description": "Sent when no acceptable mp4 format is available for the video",
+      "other": "❌ Unsupported video format. Try a different format or link."
+    },
+    "rate_limited": {
+      "description": "Sent when a user exceeds the per-user download rate limit",
+      "other": "⏳ Too many requests. Please wait a few seconds and try again."
+    }
+  }
 }
-

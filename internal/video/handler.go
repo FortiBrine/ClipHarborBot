@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -23,6 +24,7 @@ type Handler struct {
 	downloader     Downloader
 	formatSelector *FormatSelector
 	limiter        *RateLimiter
+	logger         *slog.Logger
 }
 
 func NewHandler(
@@ -32,6 +34,7 @@ func NewHandler(
 	downloader Downloader,
 	formatSelector *FormatSelector,
 	limiter *RateLimiter,
+	logger *slog.Logger,
 ) *Handler {
 	return new(Handler{
 		userService:    userService,
@@ -40,6 +43,7 @@ func NewHandler(
 		downloader:     downloader,
 		formatSelector: formatSelector,
 		limiter:        limiter,
+		logger:         logger,
 	})
 }
 
@@ -62,7 +66,7 @@ func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageH
 		if !platform.IsValidURL(url) {
 			if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 				chatID,
-				i18n.T(localizer, "invalid_video_url"),
+				i18n.T(localizer, msgInvalidURL),
 			)); err != nil {
 				return fmt.Errorf("sending message to user: %w", err)
 			}
@@ -73,7 +77,7 @@ func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageH
 		if !h.limiter.Allow(userID) {
 			if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 				chatID,
-				i18n.T(localizer, "rate_limited"),
+				i18n.T(localizer, msgRateLimited),
 			)); err != nil {
 				return fmt.Errorf("sending message to user: %w", err)
 			}
@@ -81,28 +85,24 @@ func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageH
 			return nil
 		}
 
-		format, err := h.formatSelector.FetchBest(ctx, h.fetcher, url)
+		format, size, err := h.formatSelector.FetchBest(ctx, h.fetcher, url)
 		if err != nil {
-			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_format_error")
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, msgFormatError)
 			return fmt.Errorf("fetching best format for %s (%s): %w", platform.Name, url, err)
 		}
 
-		if format.Filesize <= 0 {
-			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_format_error")
-			return fmt.Errorf("format not available")
-		}
-
-		if _, err = ctx.Bot().SendMessage(ctx, tu.Messagef(
+		if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 			chatID,
-			i18n.T(localizer, "video_expected_size"),
-			humanize.IBytes(uint64(format.Filesize)),
+			i18n.T(localizer, msgExpectedSize, map[string]any{
+				"Size": humanize.IBytes(uint64(size)),
+			}),
 		)); err != nil {
 			return fmt.Errorf("sending message to user: %w", err)
 		}
 
 		statusMsg, err := ctx.Bot().SendMessage(ctx, tu.Message(
 			chatID,
-			i18n.T(localizer, "video_downloading"),
+			i18n.T(localizer, msgDownloading),
 		))
 		if err != nil {
 			return fmt.Errorf("sending message to user: %w", err)
@@ -117,19 +117,23 @@ func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageH
 			h.handleDownloadError(ctx, ctx.Bot(), chatID, localizer, err)
 			return fmt.Errorf("downloading video for %s (%s): %w", platform.Name, url, err)
 		}
-		defer h.downloader.CleanupFile(filePath)
+		defer func() {
+			if cleanupErr := h.downloader.CleanupFile(filePath); cleanupErr != nil {
+				h.logger.Error("cleaning up downloaded file", "file", filePath, "error", cleanupErr)
+			}
+		}()
 
 		if _, err = ctx.Bot().EditMessageText(ctx, tu.EditMessageText(
 			chatID,
 			statusMsg.MessageID,
-			i18n.T(localizer, "video_uploading"),
+			i18n.T(localizer, msgUploading),
 		)); err != nil {
 			return fmt.Errorf("editing message to user: %w", err)
 		}
 
 		file, err := os.Open(filePath)
 		if err != nil {
-			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_download_error")
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, msgDownloadError)
 			return fmt.Errorf("opening file: %w", err)
 		}
 		defer file.Close()
@@ -138,7 +142,7 @@ func (h *Handler) Handle(platform *Platform, pattern *regexp.Regexp) th.MessageH
 			chatID,
 			tu.File(file),
 		)); err != nil {
-			h.sendError(ctx, ctx.Bot(), chatID, localizer, "video_upload_error")
+			h.sendError(ctx, ctx.Bot(), chatID, localizer, msgUploadError)
 			return fmt.Errorf("sending video to user: %w", err)
 		}
 
@@ -153,13 +157,13 @@ func (h *Handler) handleDownloadError(
 	localizer *i18n.Localizer,
 	err error,
 ) error {
-	msg := "video_download_error"
+	msg := msgDownloadError
 
 	switch {
 	case errors.Is(err, ErrFileTooLarge):
-		msg = "video_size_error"
+		msg = msgSizeError
 	case errors.Is(err, ErrInvalidFormat):
-		msg = "video_format_error"
+		msg = msgFormatError
 	}
 
 	if sendingErr := h.sendError(ctx, b, chatID, localizer, msg); sendingErr != nil {

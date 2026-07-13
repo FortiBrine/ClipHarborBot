@@ -1,6 +1,7 @@
 package video
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
@@ -17,6 +18,7 @@ func RegisterRoutes(
 	fetcher MetadataFetcher,
 	downloader Downloader,
 	formatSelector *FormatSelector,
+	logger *slog.Logger,
 ) {
 	handler := NewHandler(
 		userService,
@@ -25,6 +27,7 @@ func RegisterRoutes(
 		downloader,
 		formatSelector,
 		NewRateLimiter(userRateLimitInterval),
+		logger,
 	)
 
 	for _, platform := range Platforms {

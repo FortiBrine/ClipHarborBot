@@ -25,7 +25,8 @@ func NewService() *Service {
 }
 
 func (s *Service) LoadTranslations() error {
-	for _, path := range []string{"locales/uk.json", "locales/en.json", "locales/pl.json"} {
+	for _, lang := range SupportedLanguages {
+		path := "locales/" + lang.Code + ".json"
 		if _, err := s.bundle.LoadMessageFileFS(localeFS, path); err != nil {
 			return fmt.Errorf("i18n: loading %s: %w", path, err)
 		}

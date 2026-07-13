@@ -48,8 +48,8 @@ func NewYTDLPDownloader(
 		return nil, fmt.Errorf("yt-dlp not installed: %w", err)
 	}
 
-	tempDir, err := os.MkdirTemp("", "clipharborbot-*")
-	if err != nil {
+	tempDir := filepath.Join(os.TempDir(), "clipharborbot")
+	if err := os.MkdirAll(tempDir, 0o700); err != nil {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
 	}
 

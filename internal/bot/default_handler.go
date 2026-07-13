@@ -24,7 +24,7 @@ func NewDefaultHandler(
 		localizer := i18nService.FromLanguage(lang)
 		if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 			message.Chat.ChatID(),
-			i18n.T(localizer, "unknown_command"),
+			i18n.T(localizer, msgUnknownCommand),
 		)); err != nil {
 			return fmt.Errorf("sending unknown_command: %w", err)
 		}

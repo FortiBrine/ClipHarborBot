@@ -2,11 +2,19 @@ package user
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/FortiBrine/ClipHarborBot/internal/i18n"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
+)
+
+const CallbackDataPrefix = "lang:"
+
+const (
+	msgChangeLanguage   = "user.change_language_message"
+	msgSelectedLanguage = "user.selected_language_message"
 )
 
 type Handler struct {
@@ -30,18 +38,14 @@ func (h *Handler) SetLanguage(ctx *th.Context, message telego.Message) error {
 
 	localizer := h.i18nService.FromLanguage(lang)
 
-	keyboard := tu.InlineKeyboard(
-		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("Українська").WithCallbackData("lang_ukrainian_button"),
-			tu.InlineKeyboardButton("English").WithCallbackData("lang_english_button"),
-		),
-		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("Polski").WithCallbackData("lang_polish_button"),
-		),
-	)
+	buttons := make([]telego.InlineKeyboardButton, 0, len(i18n.SupportedLanguages))
+	for _, l := range i18n.SupportedLanguages {
+		buttons = append(buttons, tu.InlineKeyboardButton(l.Name).WithCallbackData(CallbackDataPrefix+l.Code))
+	}
+	keyboard := tu.InlineKeyboard(tu.InlineKeyboardRow(buttons...))
 	if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 		tu.ID(message.Chat.ID),
-		i18n.T(localizer, "change_language_message"),
+		i18n.T(localizer, msgChangeLanguage),
 	).WithReplyMarkup(keyboard)); err != nil {
 		return fmt.Errorf("sending change_language_message: %w", err)
 	}
@@ -62,15 +66,8 @@ func (h *Handler) CallbackHandler(ctx *th.Context, query telego.CallbackQuery) e
 		return fmt.Errorf("answering callback query: %w", err)
 	}
 
-	var language string
-	switch query.Data {
-	case "lang_ukrainian_button":
-		language = "ua"
-	case "lang_english_button":
-		language = "en"
-	case "lang_polish_button":
-		language = "pl"
-	default:
+	language := strings.TrimPrefix(query.Data, CallbackDataPrefix)
+	if !i18n.IsSupported(language) {
 		return fmt.Errorf("unknown callback data: %s", query.Data)
 	}
 
@@ -87,7 +84,7 @@ func (h *Handler) CallbackHandler(ctx *th.Context, query telego.CallbackQuery) e
 
 	if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 		query.Message.GetChat().ChatID(),
-		i18n.T(localizer, "selected_language_message"),
+		i18n.T(localizer, msgSelectedLanguage),
 	)); err != nil {
 		return fmt.Errorf("sending user language message: %w", err)
 	}

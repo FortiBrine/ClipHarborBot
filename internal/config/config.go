@@ -24,7 +24,6 @@ type Config struct {
 
 	TelegramToken string `env:"TELEGRAM_TOKEN,required"`
 	WebhookURL    string `env:"WEBHOOK_URL"`
-	WebhookSecret string `env:"WEBHOOK_SECRET"`
 	HttpAddress   string `env:"HTTP_ADDRESS" envDefault:":2000"`
 
 	PostgresHost     string `env:"POSTGRES_HOST,required"`

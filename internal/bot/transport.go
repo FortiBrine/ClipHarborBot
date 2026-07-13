@@ -22,7 +22,7 @@ func newTransport(
 	logger *slog.Logger,
 	bot *telego.Bot,
 ) (t *transport, updates <-chan telego.Update, err error) {
-	if cfg.WebhookURL == "" || cfg.WebhookSecret == "" {
+	if cfg.WebhookURL == "" {
 		if err = bot.DeleteWebhook(ctx, new(telego.DeleteWebhookParams{
 			DropPendingUpdates: true,
 		})); err != nil {
@@ -36,9 +36,11 @@ func newTransport(
 		return new(transport{logger: logger}), updates, nil
 	}
 
+	secretToken := bot.SecretToken()
+
 	if err = bot.SetWebhook(ctx, new(telego.SetWebhookParams{
 		URL:         cfg.WebhookURL,
-		SecretToken: cfg.WebhookSecret,
+		SecretToken: secretToken,
 	})); err != nil {
 		return nil, nil, fmt.Errorf("setting webhook: %w", err)
 	}
@@ -53,7 +55,7 @@ func newTransport(
 		Handler: mux,
 	})
 
-	if updates, err = bot.UpdatesViaWebhook(ctx, telego.WebhookHTTPServer(server, "/webhook", cfg.WebhookSecret)); err != nil {
+	if updates, err = bot.UpdatesViaWebhook(ctx, telego.WebhookHTTPServer(server, "/webhook", secretToken)); err != nil {
 		return nil, nil, fmt.Errorf("setting up webhook: %w", err)
 	}
 

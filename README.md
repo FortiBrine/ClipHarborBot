@@ -62,7 +62,6 @@ POSTGRES_DB=clipharborbot_db
 BOT_TOKEN=your_bot_token_here
 BOT_MODE=webhook
 WEBHOOK_URL=https://your-domain.com/webhook
-WEBHOOK_SECRET=your_webhook_secret_here
 
 # Optional: only needed if you use Cloudflare Tunnel to expose the webhook
 CLOUDFLARE_TUNNEL_TOKEN=your_cloudflare_tunnel_token_here

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -62,6 +63,12 @@ func (f *YTDLPFetcher) Fetch(ctx context.Context, url string) (*Meta, error) {
 		"--",
 		url,
 	)
+	c.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"TMPDIR=" + os.Getenv("TMPDIR"),
+		"LANG=" + os.Getenv("LANG"),
+	}
 
 	statusChan := c.Start()
 	var status gocmd.Status

@@ -24,7 +24,7 @@ func NewStartHandler(
 		localizer := i18nService.FromLanguage(lang)
 		if _, err = ctx.Bot().SendMessage(ctx, tu.Message(
 			message.Chat.ChatID(),
-			i18n.T(localizer, "start_command"),
+			i18n.T(localizer, msgStartCommand),
 		)); err != nil {
 			return fmt.Errorf("sending start_command: %w", err)
 		}

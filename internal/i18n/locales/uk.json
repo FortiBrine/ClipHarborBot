@@ -1,17 +1,60 @@
 {
-  "unknown_command": "❌ Невідома команда",
-  "start_command": "Привіт, я ClipHarborBot. Надішли посилання на TikTok, YouTube чи Instagram, і я завантажу відео.",
-  "change_language_message": "🌐 Обери мову:",
-  "selected_language_message": "✅ Мову змінено.",
-  "video_expected_size": "📦 Розмір відео буде: %s",
-  "video_downloading": "⏳ Завантажую відео...",
-  "video_uploading": "⬆️ Відправляю відео...",
-  "invalid_video_url": "❌ Невірне посилання. Будь ласка, надішліть коректне посилання.",
-  "video_download_error": "❌ Помилка при завантаженні відео. Спробуйте ще раз пізніше.",
-  "video_upload_error": "❌ Помилка при відправці відео. Спробуйте ще раз пізніше.",
-  "video_size_error": "❌ Відео занадто велике (більше 50MB). Telegram не підтримує такі великі файли.",
-  "video_format_error": "❌ Непідтримуваний формат відео. Спробуйте інший формат або інше посилання.",
-  "video_download_success": "✅ Відео завантажено.",
-  "rate_limited": "⏳ Забагато запитів. Зачекай кілька секунд і спробуй ще раз."
+  "bot": {
+    "unknown_command": {
+      "description": "Sent when a user sends a command the bot doesn't recognize",
+      "other": "❌ Невідома команда"
+    },
+    "start_command": {
+      "description": "Sent in reply to /start",
+      "other": "Привіт, я ClipHarborBot. Надішли посилання на TikTok, YouTube чи Instagram, і я завантажу відео."
+    }
+  },
+  "user": {
+    "change_language_message": {
+      "description": "Prompt shown together with the /lang language-picker keyboard",
+      "other": "🌐 Обери мову:"
+    },
+    "selected_language_message": {
+      "description": "Confirmation sent after a user picks a language from the keyboard",
+      "other": "✅ Мову змінено."
+    }
+  },
+  "video": {
+    "expected_size": {
+      "description": "Shows the estimated download size before the download starts; {{.Size}} is a human-readable byte size, e.g. \"12 MiB\"",
+      "other": "📦 Розмір відео буде: {{.Size}}"
+    },
+    "downloading": {
+      "description": "Status update shown while yt-dlp is downloading the video",
+      "other": "⏳ Завантажую відео..."
+    },
+    "uploading": {
+      "description": "Status update shown while the bot uploads the downloaded file to Telegram",
+      "other": "⬆️ Відправляю відео..."
+    },
+    "invalid_url": {
+      "description": "Sent when the message text isn't a valid URL for the matched platform",
+      "other": "❌ Невірне посилання. Будь ласка, надішліть коректне посилання."
+    },
+    "download_error": {
+      "description": "Generic fallback error shown when downloading the video fails for an unmapped reason",
+      "other": "❌ Помилка при завантаженні відео. Спробуйте ще раз пізніше."
+    },
+    "upload_error": {
+      "description": "Sent when uploading the downloaded video to Telegram fails",
+      "other": "❌ Помилка при відправці відео. Спробуйте ще раз пізніше."
+    },
+    "size_error": {
+      "description": "Sent when the video exceeds Telegram's upload size limit",
+      "other": "❌ Відео занадто велике. Telegram дозволяє файли розміром до 50MB."
+    },
+    "format_error": {
+      "description": "Sent when no acceptable mp4 format is available for the video",
+      "other": "❌ Непідтримуваний формат відео. Спробуйте інший формат або посилання."
+    },
+    "rate_limited": {
+      "description": "Sent when a user exceeds the per-user download rate limit",
+      "other": "⏳ Забагато запитів. Зачекай кілька секунд і спробуй ще раз."
+    }
+  }
 }
-

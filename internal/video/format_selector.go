@@ -22,21 +22,21 @@ func (s *FormatSelector) FetchBest(
 	ctx context.Context,
 	fetcher MetadataFetcher,
 	url string,
-) (*Format, error) {
+) (*Format, int64, error) {
 	meta, err := fetcher.Fetch(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("fetching metadata: %w", err)
+		return nil, 0, fmt.Errorf("fetching metadata: %w", err)
 	}
 
-	format := s.selectBest(meta)
+	format, size := s.selectBest(meta)
 	if format == nil {
-		return nil, ErrInvalidFormat
+		return nil, 0, ErrInvalidFormat
 	}
 
-	return format, nil
+	return format, size, nil
 }
 
-func (s *FormatSelector) selectBest(meta *Meta) (format *Format) {
+func (s *FormatSelector) selectBest(meta *Meta) (best *Format, bestSize int64) {
 	for _, f := range meta.Formats {
 		if f.Ext != "mp4" ||
 			f.Vcodec == "none" ||
@@ -51,8 +51,9 @@ func (s *FormatSelector) selectBest(meta *Meta) (format *Format) {
 			continue
 		}
 
-		if f.Height > format.Height {
-			format = f
+		if best == nil || f.Height > best.Height {
+			best = f
+			bestSize = size
 		}
 	}
 	return

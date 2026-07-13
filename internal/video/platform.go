@@ -54,12 +54,3 @@ func (p *Platform) IsValidURL(url string) bool {
 	}
 	return false
 }
-
-func DetectPlatform(url string) *Platform {
-	for _, platform := range Platforms {
-		if platform.IsValidURL(url) {
-			return platform
-		}
-	}
-	return nil
-}

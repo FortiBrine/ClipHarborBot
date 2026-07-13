@@ -48,6 +48,9 @@ func New(
 	if err = i18nService.LoadTranslations(); err != nil {
 		return nil, fmt.Errorf("loading translations: %w", err)
 	}
+	if !i18n.IsSupported(cfg.DefaultLang) {
+		return nil, fmt.Errorf("unsupported DEFAULT_LANG: %q", cfg.DefaultLang)
+	}
 
 	userRepository := user.NewPostgresRepository(pool)
 	userService := user.NewService(userRepository, cfg.DefaultLang)
@@ -61,6 +64,9 @@ func New(
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating video downloader: %w", err)
+	}
+	if cleanupErr := downloader.CleanupOldFiles(0); cleanupErr != nil {
+		logger.Warn("cleaning up old downloads on startup", "error", cleanupErr)
 	}
 	formatSelector := video.NewFormatSelector(maxSize)
 
@@ -90,6 +96,9 @@ func New(
 			bh.Stop()
 		}
 	}()
+	bh.Use(th.PanicRecoveryHandler(func(recovered any) error {
+		return fmt.Errorf("panic in handler: %v", recovered)
+	}))
 	RegisterRoutes(
 		bh,
 		userService,
@@ -97,6 +106,7 @@ func New(
 		fetcher,
 		downloader,
 		formatSelector,
+		logger,
 	)
 
 	b = new(Bot{
@@ -109,22 +119,34 @@ func New(
 	return
 }
 
-func (b *Bot) Start() error {
-	if err := b.bh.Start(); err != nil {
-		return fmt.Errorf("starting bot handler: %w", err)
-	}
+func (b *Bot) Start(ctx context.Context) error {
 	b.transport.Start()
-	return nil
+
+	done := make(chan error, 1)
+	go func() {
+		done <- b.bh.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil
+	case err := <-done:
+		if err != nil {
+			return fmt.Errorf("starting bot handler: %w", err)
+		}
+		return nil
+	}
 }
 
-func (b *Bot) Close(ctx context.Context, cfg config.Config) error {
-	b.pool.Close()
+func (b *Bot) Close(ctx context.Context) error {
+	if err := b.transport.Stop(ctx); err != nil {
+		return fmt.Errorf("stopping transport: %w", err)
+	}
+
 	if err := b.bh.StopWithContext(ctx); err != nil {
 		return fmt.Errorf("stopping bot handler: %w", err)
 	}
 
-	if err := b.transport.Stop(ctx); err != nil {
-		return fmt.Errorf("stopping transport: %w", err)
-	}
+	b.pool.Close()
 	return nil
 }
