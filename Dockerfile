@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     ./cmd/bot
 
 FROM docker.io/library/alpine:3.24
-ARG YTDLP_VERSION=2026.03.13
+ARG YTDLP_VERSION=2026.07.04
 
 WORKDIR /app
 
